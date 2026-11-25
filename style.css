@@ -123,3 +123,14 @@ input[type=range]:disabled{opacity:.45}
 .opts .btn.was-right{border-color:var(--blue);color:var(--blue)}
 .eq{font:400 17px/1.5 var(--serif);background:var(--field);border:1px solid var(--rule);border-radius:4px;padding:8px 12px;margin:0 0 12px;overflow-x:auto;white-space:nowrap}
 .pts{font:600 15px var(--ui);color:var(--muted)}
+
+/* ---------- FACTS-H Lab branding ---------- */
+.lab{display:flex;align-items:center;gap:12px;margin:34px 0 0;padding:16px 0 0;border-top:1px solid var(--rule);color:var(--muted);font-size:14px;line-height:1.4;text-decoration:none}
+.lab img{width:56px;height:56px;flex:none}
+.lab b{color:var(--ink);font-weight:700}
+.lab:hover b{text-decoration:underline}
+.labcard{display:flex;gap:14px;align-items:center;border:1px solid var(--rule);border-radius:6px;padding:14px;margin:18px 0;background:var(--field)}
+.labcard img{width:72px;height:72px;flex:none}
+.labcard p{margin:0;font-size:15px}
+.bar .title{display:flex;align-items:center;gap:8px}
+.bar .title img{width:28px;height:28px}
