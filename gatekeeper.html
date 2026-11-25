@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gatekeeper</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .tokens{display:flex;gap:6px;margin:6px 0 14px;flex-wrap:wrap}
+  .tok{min-width:46px;border:1.5px solid var(--rule);border-radius:6px;padding:6px 4px;text-align:center;background:var(--paper)}
+  .tok .v{font:600 20px/1.1 var(--serif)}
+  .tok .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .tok.now{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+  .tok.done{opacity:.45}
+  .tok.store .k{color:var(--blue);font-weight:700}
+  .tok.ask .k{color:var(--red);font-weight:700}
+  .belt{display:flex;align-items:center;gap:12px;border:1px solid var(--rule);border-radius:6px;padding:10px 12px;margin:0 0 12px;background:var(--field)}
+  .belt .lab{font-size:14px;color:var(--muted);flex:1}
+  .belt .num{font:600 34px/1 var(--serif);font-variant-numeric:tabular-nums;min-width:2.2ch;text-align:right}
+  .gates{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 12px}
+  .gates.one{grid-template-columns:1fr}
+  .gate{border:1.5px solid var(--ink);border-radius:6px;background:var(--paper);color:var(--ink);padding:10px 6px;font:700 15px/1.25 var(--ui);cursor:pointer;text-align:center}
+  .gate small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .gate .st{font:600 26px/1.1 var(--serif);display:block}
+  .gate.on{background:var(--ink);color:var(--paper)}
+  .gate.on small{color:var(--paper);opacity:.8}
+  table.trace{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 14px}
+  table.trace th,table.trace td{border-bottom:1px solid var(--rule);padding:5px 4px;text-align:center}
+  table.trace td.bad{color:var(--red);font-weight:700}
+  table.trace td.ok{color:var(--blue);font-weight:700}
+  .goal{border-left:3px solid var(--ink);padding:4px 0 4px 12px;margin:0 0 14px}
+</style>
+</head>
+<body>
+<header class="bar"><p class="title">Gatekeeper</p><a href="index.html">All games</a></header>
+<main class="sheet">
+
+  <section id="start">
+    <h1>You are the gates</h1>
+    <p>A one-slot LSTM. A row of tokens arrives one at a time. Before each token you set three gates, then press <b>Step</b>:</p>
+    <p class="eq">c<sub>t</sub> = f·c<sub>t−1</sub> + i·x<sub>t</sub> &nbsp;&nbsp;&nbsp; output = o·c<sub>t</sub></p>
+    <ul class="small">
+      <li><b>f, forget gate</b>: 1 keeps the old memory, 0 erases it. (Yes, “forget = 1” means <i>keep</i>.)</li>
+      <li><b>i, input gate</b>: 1 adds the current token to the memory, 0 ignores it.</li>
+      <li><b>o, output gate</b>: 1 shows the memory, 0 stays silent.</li>
+    </ul>
+    <p class="muted small">We drop the tanh and use only 0 or 1 so the numbers stay readable. In a real LSTM every gate is a value between 0 and 1, learned per step.</p>
+    <p>Five levels, 20 points each. On <span style="color:var(--red);font-weight:700">ASK</span> tokens the output must be the right number. On every other token the output must be 0. Each mistake costs 5 points.</p>
+    <label for="nick">Nickname for the room screen<span class="hint">Optional. Leave blank and we'll pick one for you.</span></label>
+    <input type="text" id="nick" maxlength="30" autocomplete="off">
+    <p></p>
+    <button class="btn primary" id="go">Start</button>
+  </section>
+
+  <section id="play" class="hidden">
+    <div class="progress"><span id="qn">Level 1 of 5</span><span>Score <b id="sc">0</b></span></div>
+    <div class="drain"><i id="tb" style="width:0%"></i></div>
+    <p class="kicker" id="kick"></p>
+    <h2 style="margin-top:0" id="ltitle"></h2>
+    <div class="goal" id="goal"></div>
+    <div class="tokens" id="tokens"></div>
+    <div class="belt"><span class="lab" id="beltlab">Cell state (the belt)</span><span class="num" id="cval">0</span></div>
+    <div id="controls">
+      <div class="gates" id="gates"></div>
+      <button class="btn primary" id="step">Step</button>
+    </div>
+    <table class="trace" id="trace"></table>
+    <div id="fb" class="hidden">
+      <div class="note" id="vd"></div>
+      <button class="btn primary" id="next">Next level</button>
+    </div>
+  </section>
+
+  <section id="end" class="hidden">
+    <p class="muted" style="margin:0">Your score</p>
+    <div class="score"><span id="fs">0</span><small> out of 100</small></div>
+    <p id="msg"></p>
+    <p class="status" id="sent"></p>
+    <hr>
+    <h2>What the levels were showing</h2>
+    <p><b>Store and recall.</b> Write with i = 1 once, then hold with f = 1 and keep o = 0 until asked.</p>
+    <p><b>Overwrite.</b> A new value needs f = 0 and i = 1 on the same step: erase and write together.</p>
+    <p><b>Count.</b> The belt adds. f = 1 and i = 1 on each star keeps a running total. A plain RNN, which squashes everything through tanh at every step, has no clean way to do this.</p>
+    <p><b>Recall twice.</b> Showing the memory (o = 1) does not use it up.</p>
+    <p><b>GRU.</b> One gate z mixes old and new: h = (1 − z)·h + z·x. Storing and holding are easy. Counting is impossible, because writing always erases the same share of what was there.</p>
+    <h2>Your levels</h2>
+    <ol class="review" id="review"></ol>
+    <p></p>
+    <button class="btn" id="again">Play again</button>
+  </section>
+
+</main>
+<script src="config.js"></script>
+<script src="results-client.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+// Token kinds: "store" (worth remembering), "noise" (a distractor), "star"/"dot" (for counting), "ask" (output required).
+const LEVELS=[
+  {id:"l1",title:"Store and recall",goal:"Remember the STORE number through the noise, and say it only when asked.",
+   toks:[{v:5,k:"store"},{v:2,k:"noise"},{v:9,k:"noise"},{v:4,k:"noise"},{v:0,k:"ask",want:5}]},
+  {id:"l2",title:"Overwrite",goal:"The subject changes halfway. When asked, give the <i>latest</i> STORE number.",
+   toks:[{v:3,k:"store"},{v:8,k:"noise"},{v:6,k:"store"},{v:1,k:"noise"},{v:0,k:"ask",want:6}]},
+  {id:"l3",title:"Count the stars",goal:"Each ★ is worth 1, and so is each ◆. Count only the stars. Say the count when asked.",
+   toks:[{v:1,k:"star"},{v:1,k:"dot"},{v:1,k:"star"},{v:1,k:"star"},{v:1,k:"dot"},{v:0,k:"ask",want:3}]},
+  {id:"l4",title:"Recall twice",goal:"Answer the first question, then switch to the new STORE number for the second.",
+   toks:[{v:4,k:"store"},{v:7,k:"noise"},{v:0,k:"ask",want:4},{v:2,k:"store"},{v:5,k:"noise"},{v:0,k:"ask",want:2}]},
+  {id:"l5",title:"Now you are a GRU",gru:true,goal:"A GRU has one gate. Each step: h = (1 − z)·h + z·x, and h is always visible. Hold the STORE number so that h is right when asked (only ASK steps are checked).",
+   toks:[{v:6,k:"store"},{v:3,k:"noise"},{v:8,k:"noise"},{v:1,k:"noise"},{v:0,k:"ask",want:6}]}
+];
+const KLAB={store:"store",noise:"noise",star:"★",dot:"◆",ask:"ask"};
+let nick="",li=0,score=0,log=[],L=null,t=0,c=0,g={},rows=[],mistakes=0;
+
+function show(id){for(const s of ["start","play","end"])$(s).classList.toggle("hidden",s!==id);window.scrollTo(0,0)}
+function start(){nick=Results.cleanNick($("nick").value);li=0;score=0;log=[];$("sc").textContent=0;show("play");level()}
+
+function level(){
+  L=LEVELS[li];t=0;c=0;rows=[];mistakes=0;
+  $("qn").textContent="Level "+(li+1)+" of 5";$("tb").style.width=(li/5*100)+"%";
+  $("kick").textContent=L.gru?"GRU level · 20 points":"LSTM level · 20 points";
+  $("ltitle").textContent=L.title;$("goal").innerHTML=L.goal;
+  $("beltlab").textContent=L.gru?"Hidden state h (always shown)":"Cell state c (the belt)";
+  $("controls").classList.remove("hidden");$("fb").classList.add("hidden");
+  resetGates();render();
+}
+function resetGates(){g=L.gru?{z:0}:{f:0,i:0,o:0}}
+function gateBtns(){
+  const defs=L.gru?[["z","update z","1 = take the token, 0 = keep h"]]:
+    [["f","forget f","1 = keep, 0 = erase"],["i","input i","1 = add token"],["o","output o","1 = show"]];
+  $("gates").className="gates"+(L.gru?" one":"");
+  $("gates").innerHTML=defs.map(([k,n,h])=>`<button class="gate ${g[k]?'on':''}" data-k="${k}" aria-pressed="${!!g[k]}">${n}<span class="st">${g[k]}</span><small>${h}</small></button>`).join("");
+  document.querySelectorAll(".gate").forEach(b=>b.onclick=()=>{g[b.dataset.k]=g[b.dataset.k]?0:1;gateBtns()});
+}
+function tokHTML(x,k){
+  return `<div class="tok ${x.k==='store'?'store':''} ${x.k==='ask'?'ask':''} ${k<t?'done':''} ${k===t?'now':''}"><div class="k">${KLAB[x.k]}</div><div class="v">${x.k==='ask'?'?':x.v}</div></div>`;
+}
+function render(){
+  $("tokens").innerHTML=L.toks.map(tokHTML).join("");
+  $("cval").textContent=fmt(c);gateBtns();
+  const head=L.gru?"<tr><th>token</th><th>z</th><th>h</th><th>checked?</th></tr>":"<tr><th>token</th><th>f i o</th><th>belt c</th><th>output</th><th></th></tr>";
+  $("trace").innerHTML=rows.length?head+rows.join(""):"";
+}
+function fmt(v){return Math.round(v*100)/100}
+
+function step(){
+  const x=L.toks[t];let out,ok,note;
+  if(L.gru){
+    c=(1-g.z)*c+g.z*x.v;out=c;
+    if(x.k==="ask"){ok=Math.abs(out-x.want)<1e-9;note=ok?"right":"wanted "+x.want}else{ok=true;note="–"}
+    rows.push(`<tr><td>${KLAB[x.k]} ${x.k==='ask'?'':x.v}</td><td>${g.z}</td><td>${fmt(c)}</td><td class="${x.k==='ask'?(ok?'ok':'bad'):''}">${note}</td></tr>`);
+  }else{
+    c=g.f*c+g.i*x.v;out=g.o*c;
+    if(x.k==="ask"){ok=Math.abs(out-x.want)<1e-9;note=ok?"right":"wanted "+x.want}
+    else{ok=out===0;note=ok?"silent":"leak"}
+    rows.push(`<tr><td>${KLAB[x.k]} ${x.k==='ask'?'?':x.v}</td><td>${g.f} ${g.i} ${g.o}</td><td>${fmt(c)}</td><td>${fmt(out)}</td><td class="${ok?'ok':'bad'}">${note}</td></tr>`);
+  }
+  if(!ok)mistakes++;
+  t++;resetGates();render();
+  if(t>=L.toks.length)endLevel();
+}
+function endLevel(){
+  const p=Math.max(0,20-5*mistakes);score+=p;$("sc").textContent=score;
+  $("controls").classList.add("hidden");
+  const tips={
+    l1:"Pattern: store with f0 i1 o0, hold with f1 i0 o0, answer with f1 i0 o1.",
+    l2:"The new subject needs f0 i1 on the same step: erase and write together. With f1 i1 you get 3 + 6 = 9.",
+    l3:"On every ★ set f1 i1; on every ◆ set f1 i0. The belt keeps a running total because it adds.",
+    l4:"Showing the memory (o1) does not use it up. After the first answer, f0 i1 on the new STORE token.",
+    l5:"z = 1 on the STORE token, z = 0 afterwards. Now try counting with one gate in your head: z = 1 replaces the total, z = 0.5 halves it. A GRU cannot add."
+  };
+  log.push({id:L.id,label:L.title,p,mistakes,tip:tips[L.id]});
+  $("vd").className="note "+(p===20?"right":"wrong");
+  $("vd").innerHTML="<b>"+p+" of 20"+(mistakes?" ("+mistakes+" mistake"+(mistakes>1?"s":"")+")":"")+".</b> "+tips[L.id];
+  $("fb").classList.remove("hidden");
+  $("next").textContent=li===LEVELS.length-1?"See my score":"Next level";
+  $("fb").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function nextLevel(){li++;if(li<LEVELS.length)level();else finish()}
+
+function finish(){
+  $("tb").style.width="100%";show("end");$("fs").textContent=score;
+  $("msg").textContent=score>=90?"You'd make a good forget gate.":score>=60?"Most of it is there. Look at the level where you lost points.":"The most common slip: setting “forget” to 0 to keep things. In an LSTM, f = 1 keeps.";
+  $("review").innerHTML=log.map((r,k)=>`<li><span class="verdict ${r.p===20?'real':'fake'}">Level ${k+1}: ${r.p} / 20</span><p class="small" style="margin:4px 0 0">${r.label}</p><p class="muted small" style="margin:2px 0 0">${r.tip}</p></li>`).join("");
+  report();
+}
+async function report(){
+  const el=$("sent");
+  if(!Results.ready){el.textContent="Show your score when the speaker asks.";return}
+  el.textContent="Sending your score to the room screen…";
+  const r=await Results.send({game:"gate",nickname:nick,score:score,total:100,
+    answers:log.map(x=>({id:x.id,label:x.label,truth:"full marks",correct:x.p===20}))});
+  el.textContent=r.ok?("Your score is on the room screen as “"+nick+"”."):"The room screen didn't receive your score. Show it when the speaker asks.";
+}
+$("go").onclick=start;$("again").onclick=start;$("step").onclick=step;$("next").onclick=nextLevel;
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QIPPG103: sequence models and RL games</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .masthead{padding:8px 0 18px;border-bottom:2px solid var(--ink);margin-bottom:6px}
+  .masthead p{margin:0;color:var(--muted);font-size:15px}
+  .masthead h1{font-size:32px;margin:6px 0 4px}
+  .masthead .sub{font:italic 400 19px/1.4 var(--serif);color:var(--ink)}
+  .toc{list-style:none;margin:0;padding:0}
+  .toc li{border-bottom:1px solid var(--rule)}
+  .toc a{display:grid;grid-template-columns:1fr auto;gap:4px 16px;padding:18px 2px;color:var(--ink);text-decoration:none}
+  .toc a:hover .name{text-decoration:underline}
+  .toc .name{font:600 21px/1.3 var(--serif)}
+  .toc .time{color:var(--muted);font-size:15px;white-space:nowrap;align-self:baseline}
+  .toc .what{grid-column:1/-1;color:var(--muted)}
+</style>
+</head>
+<body>
+<main class="sheet">
+  <div class="masthead">
+    <p>IIIT Kottayam, QIPPG103 Machine Learning · Dr. Sara Renjit</p>
+    <h1>Play the model</h1>
+    <p class="sub">Three short games for the lectures on recurrent networks and reinforcement learning.</p>
+  </div>
+  <ul class="toc">
+    <li><a href="hidden-state.html">
+      <span class="name">Hidden State</span><span class="time">Lecture 20 · 6 minutes</span>
+      <span class="what">You are the recurrent weight. Tune a one-number RNN until its memory traces the target, then keep a gradient alive for 40 steps.</span></a></li>
+    <li><a href="gatekeeper.html">
+      <span class="name">Gatekeeper</span><span class="time">Lecture 21 · 8 minutes</span>
+      <span class="what">You are the forget, input and output gates of an LSTM. Store, overwrite, count and recall, then try it as a GRU with one gate.</span></a></li>
+    <li><a href="reward-designer.html">
+      <span class="name">Reward Designer</span><span class="time">Lecture 24 · 8 minutes</span>
+      <span class="what">Formulate four RL tasks, then fix three broken reward functions for a campus delivery robot and watch what it learns.</span></a></li>
+  </ul>
+  <p class="muted small" style="margin-top:20px">Your answers stay on your phone. Only your nickname and score go to the room screen.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,22 @@
+\small
+Test accuracy (\%) on 2{,}000 new sequences, one number per random seed. Chance is 12.5\%.
+\vskip0.6em
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}l cccccc@{}}
+  \toprule
+  \textbf{sequence length} $T$ & 10 & 20 & 40 & 80 & 160 \\ \midrule
+  Plain RNN & 100 / 100 & 100 / 100 & 100 / 100 & \alert{40 / 13} & \alert{27 / 12} \\
+  \pause
+  LSTM, forget bias $+3$ & -- & 100 / 100 & 100 / 100 & 100 / 100 & \alert{14} / 100 \\
+  \pause
+  GRU, update bias $-3$ & -- & 100 / 100 & 100 / 100 & 100 / 100 & 100 / 100 \\ \midrule
+  \multicolumn{6}{@{}l}{\emph{First attempt, before we fixed the gate initialisation:}} \\
+  \pause
+  GRU, update bias 0 & 100 / 100 & 100 / 100 & \alert{13 / 11} & \alert{14 / 13} & \alert{12 / 12} \\ \bottomrule
+\end{tabular}
+\vskip0.8em
+\begin{itemize}
+  \item The plain RNN does better than its reputation up to $T=40$, then collapses to guessing.
+  \item The gated cells hold the key for 80 steps, and the GRU for 160.
+  \item One LSTM seed failed at $T=160$: training long memories is still not guaranteed.
+\end{itemize}

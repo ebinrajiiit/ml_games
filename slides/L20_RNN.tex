@@ -1,0 +1,595 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\usepackage{srlecture}
+\input{common}
+\title{Recurrent Neural Networks}
+\renewcommand{\lecturelabel}{QIPPG103 \textperiodcentered\ Lecture 20 \textperiodcentered\ Recurrent Neural Networks}
+
+\newcommand{\rnncol}[4]{% x, has input, has output, name
+      \node[hh] (h#4) at (#1,1) {};
+      \ifnum#2=1 \node[i] (i#4) at (#1,0) {}; \draw[a] (i#4)--(h#4); \fi
+      \ifnum#3=1 \node[o] (o#4) at (#1,2) {}; \draw[a] (h#4)--(o#4); \fi}
+
+\begin{document}
+
+% ------------------------------------------------------------------ cover
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north east] at ([xshift=-1.2em,yshift=-1.0em]current page.north east) {\includegraphics[height=1.25cm]{iiitk.png}};
+  \end{tikzpicture}
+  \vskip3.2em
+  {\small\scshape\color{inksoft}\coursename\par}
+  \vskip1.2em
+  {\color{navy}\fontsize{30}{34}\selectfont Recurrent Neural Networks\par}
+  \vskip0.5em
+  {\large\itshape\color{ink}Networks that read one step at a time and remember\par}
+  \vskip0.6em{\color{rulegrey}\rule{0.45\textwidth}{0.4pt}}\par\vskip0.8em
+  {\normalsize Dr.\ Sara Renjit\par}
+  {\small\color{inksoft}Indian Institute of Information Technology Kottayam\par}
+  \vskip0.4em
+  {\small\color{inksoft}Lecture 20 of 27 \textperiodcentered\ offline session \textperiodcentered\ 90 minutes\par}
+\end{frame}
+
+% ------------------------------------------------------------------ hook
+\begin{frame}{Finish these two sentences}
+  \vskip1em
+  \begin{enumerate}
+    \item[1.] \Large Anu grew up in Kottayam and now works in Pune.\\ With her grandmother she speaks \underline{\hspace{3cm}}.
+  \end{enumerate}
+  \vskip1.5em
+  \begin{enumerate}
+    \item[2.] \Large ``The food was \alert{not} bad at all.'' \quad Positive or negative?
+  \end{enumerate}
+  \vskip2em
+  \pause
+  \normalsize You used a word from the \emph{start} of sentence 1 to fill the gap at the \emph{end}.\\
+  In sentence 2, \alert{not} flips the meaning of the words after it. Order matters, and so does memory.
+\end{frame}
+
+\begin{frame}{Plan for today}
+  \begin{tabular}{@{}r@{\hspace{1.2em}}p{9.2cm}@{\hspace{1em}}l@{}}
+    \toprule
+    \textbf{min} & \textbf{What we do} & \textbf{Worksheet} \\ \midrule
+    0--10  & Why sequences break a feedforward network & \\
+    10--30 & The recurrent idea; one forward pass by hand & Part A \\
+    30--40 & Five shapes of RNN; matching tasks to shapes & Part B \\
+    40--55 & Training: backpropagation through time, vanishing gradients & \\
+    55--68 & Case study: an RNN that invents Kerala place names & Part C \\
+    68--82 & Game: \emph{Hidden State} on your phone & Part D \\
+    82--90 & Exit ticket, and what LSTM will fix next session & Part E \\ \bottomrule
+  \end{tabular}
+  \vskip1em
+  \margin{Reading: Goodfellow, Bengio \& Courville, \emph{Deep Learning}, Chapter 10 (Sections 10.1--10.2, 10.7).}
+\end{frame}
+
+% ------------------------------------------------------------------ section 1
+\sectionslide{Part 1}{Data that arrives in order}
+
+\begin{frame}{Sequences are everywhere in the data we actually have}
+  \begin{tabular}{@{}>{\raggedright}p{4.0cm}>{\raggedright}p{4.4cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+    \toprule
+    \textbf{Domain} & \textbf{One input is \ldots} & \textbf{We want \ldots} \\ \midrule
+    Malayalam news text & a word or a character & next word, topic, sentiment \\
+    ECG from a ward monitor & one heartbeat window & a flag on abnormal beats \\
+    Kerala monthly rainfall & one month's reading & next month's rainfall \\
+    UPI transactions & one payment & ``is this account compromised?'' \\
+    Speech & 25 ms of audio & the spoken word \\
+    \bottomrule
+  \end{tabular}
+  \vskip1.2em
+  Two things are common to all of them:
+  \begin{itemize}
+    \item the length changes from one example to the next;
+    \item what an item means depends on what came before it.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{What goes wrong with the networks of Lectures 18--19}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Fixed input width.}\\ A feedforward net is built for exactly $d$ inputs. A review with 12 words and one with 300 words do not fit the same input layer.
+      \vskip1em
+      \textbf{Bag of words loses order.}\\
+      \begin{tabular}{@{}ll@{}}
+        ``dog bites man'' & $\{\text{bites},\text{dog},\text{man}\}$ \\
+        ``man bites dog'' & $\{\text{bites},\text{dog},\text{man}\}$
+      \end{tabular}\\[0.3em]
+      Same input vector, very different news.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Sliding window?}\\ Feed the last $k$ words at once.
+      \begin{itemize}
+        \item Nothing older than $k$ steps can matter.
+        \item Weights grow with $k$: $k$ words of 300 dims each into 128 units is $k\times 38{,}400$ weights.
+        \item ``not'' at position 1 needs different weights from ``not'' at position 4, so each pattern is learnt $k$ times.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vskip0.8em
+  \begin{block}{What we want}
+    One small set of weights, applied at every position, that carries a summary of everything read so far.
+  \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------ section 2
+\sectionslide{Part 2}{The recurrent idea}
+
+\begin{frame}{Reading with a notebook}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      Think of how you read a long sentence.
+      \begin{itemize}
+        \item You see one word at a time.
+        \item You keep a short running note in your head: who, what, positive or negative so far.
+        \item After each word you \emph{rewrite} the note using the old note and the new word.
+        \item The note has a fixed size, however long the sentence.
+      \end{itemize}
+      \vskip0.6em
+      The note is the \alert{hidden state} $\bm h_t$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=1.0cm]
+        \node[io] (x) {$x_t$};
+        \node[cell,above=0.8cm of x] (c) {update};
+        \node[io,above=0.8cm of c] (y) {$y_t$};
+        \draw[arr] (x) -- (c); \draw[arr] (c) -- (y);
+        \node[draw=inksoft,dashed,rounded corners=2pt,right=1.3cm of c,font=\small,align=center] (n) {note\\$h_{t-1}$};
+        \draw[rec,visible on=<2->] (n.north) to[out=110,in=40] node[above,font=\scriptsize,text=brick]{read old note} (c.north east);
+        \draw[rec,visible on=<3->] (c.south east) to[out=-40,in=-110] node[below,font=\scriptsize,text=brick]{write new note $h_t$} (n.south);
+        \node[below=0.15cm of x,font=\scriptsize,color=inksoft] {the word you just read};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{The update rule (Elman, 1990)}
+  \vskip0.4em
+  \[
+    \bm h_t \;=\; \tanh\!\big(\,\underbrace{W_{xh}\,\bm x_t}_{\text{\color{navy}what the new input says}}
+      \;+\; \underbrace{W_{hh}\,\bm h_{t-1}}_{\text{\color{brick}what the old note says}}
+      \;+\; \bm b_h\big)
+    \qquad\qquad
+    \bm{\hat y}_t \;=\; \operatorname{softmax}\!\big(W_{hy}\,\bm h_t + \bm b_y\big)
+  \]
+  \vskip1.2em
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \textbf{Sizes} (input $d$, hidden $n$, output $k$)\\[0.2em]
+      \begin{tabular}{@{}ll@{}}
+        $W_{xh}$ & $n\times d$ \\
+        $W_{hh}$ & $n\times n$ \quad \alert{the recurrence} \\
+        $W_{hy}$ & $k\times n$ \\
+        $\bm h_0$ & usually all zeros
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Why $\tanh$?}\\
+      It keeps every entry of $\bm h_t$ between $-1$ and $1$, so the note cannot blow up however many steps we run, and it is zero-centred, so positive and negative evidence can cancel.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Folded and unrolled: the same network drawn two ways}
+  \centering
+  \resizebox{0.92\textwidth}{!}{%
+  \begin{tikzpicture}[x=1.95cm]
+    % folded
+    \node[io] (x) at (0,0) {$x$};
+    \node[cell] (h) at (0,1.35) {$h$};
+    \node[io] (y) at (0,2.7) {$y$};
+    \draw[arr] (x) -- node[left,font=\scriptsize]{$W_{xh}$} (h);
+    \draw[arr] (h) -- node[left,font=\scriptsize]{$W_{hy}$} (y);
+    \draw[rec] (h.east) to[out=0,in=0,looseness=4] node[right,font=\scriptsize]{$W_{hh}$} ([yshift=3pt]h.north east);
+    \node at (1.05,1.35) {\Large$=$};
+    % unrolled
+    \foreach \i/\w in {1/{the},2/{food},3/{was},4/{not},5/{bad}} {
+      \pgfmathtruncatemacro{\s}{\i+1}
+      \node[io,font=\scriptsize,visible on=<\s->] (x\i) at (1+\i,0) {$x_{\i}$};
+      \node[font=\scriptsize\itshape,color=inksoft,below=1pt of x\i,visible on=<\s->] {\w};
+      \node[cell,visible on=<\s->] (h\i) at (1+\i,1.35) {$h_{\i}$};
+      \draw[arr,visible on=<\s->] (x\i) -- (h\i);
+    }
+    \node[io,visible on=<7->] (y5) at (6,2.7) {$\hat y$};
+    \draw[arr,visible on=<7->] (h5) -- (y5);
+    \node[font=\scriptsize,color=inksoft,visible on=<2->] (h0) at (1.6,2.1) {$h_0=\bm 0$};
+    \draw[rec,visible on=<2->] (h0) -- (h1);
+    \foreach \i [evaluate=\i as \j using int(\i+1), evaluate=\i as \s using int(\i+2)] in {1,2,3,4} { \draw[rec,visible on=<\s->] (h\i) -- node[above,font=\tiny]{$W_{hh}$} (h\j); }
+    \node[font=\scriptsize,color=inksoft,align=left,anchor=west,visible on=<7->] at (6.35,2.7) {positive\\or negative};
+  \end{tikzpicture}}
+  \vskip0.8em
+  \begin{itemize}[<8->]
+    \item Every box on the right is the \emph{same} box with the \emph{same} weights, used five times.
+    \item A 50-word review just unrolls to 50 copies. Nothing new to learn.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{One set of weights for any length}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Parameter count}
+      \[
+        \underbrace{n d}_{W_{xh}} + \underbrace{n^2}_{W_{hh}} + \underbrace{n}_{\bm b_h} + \underbrace{k n + k}_{\text{output}}
+      \]
+      Example: $d=3$, $n=4$, $k=2$:
+      \[ 12 + 16 + 4 + 8 + 2 = 42 \]
+      Feed it 10 words or 10{,}000 words: still 42 numbers to learn.
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \textbf{Why sharing helps}
+      \begin{itemize}
+        \item A pattern learnt at position 3 (``not good'') works at position 30.
+        \item Fewer weights means less data needed, the same argument as weight sharing in CNNs, but along time instead of space.
+        \item The price: the same $W_{hh}$ is multiplied in again and again. Hold on to that; it comes back in Part 4.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A forward pass you can do by hand}
+  \small
+  Scalar RNN, no bias: \quad $h_t=\tanh(0.5\,x_t + 0.8\,h_{t-1})$, \quad $h_0=0$, \quad inputs $x = (1,\;0,\;2)$
+  \vskip0.8em
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{@{}c c l l c@{}}
+    \toprule
+    $t$ & $x_t$ & pre-activation $z_t = 0.5x_t + 0.8h_{t-1}$ & & $h_t=\tanh z_t$ \\ \midrule
+    1 & 1 & $0.5(1) + 0.8(0)$ & $=0.500$ & \uncover<2->{$0.462$} \\
+    2 & 0 & $0.5(0) + 0.8(0.462)$ & $=0.370$ & \uncover<3->{$0.354$} \\
+    3 & 2 & $0.5(2) + 0.8(0.354)$ & $=1.283$ & \uncover<4->{$0.857$} \\ \bottomrule
+  \end{tabular}
+  \vskip1em
+  \uncover<4->{
+  \begin{itemize}
+    \item At $t=2$ the input is $0$, yet $h_2\neq 0$: the network still remembers $x_1$, shrunk by $0.8$.
+    \item With no new input, the memory of $x_1$ fades by roughly a factor $w_{hh}=0.8$ per step. Keep that number in mind for the game.
+  \end{itemize}}
+\end{frame}
+
+\begin{frame}{Worksheet, Part A}
+  \yourturn{5 min}
+  \vskip1em
+  \begin{block}{Do Part A in pairs}
+    \begin{enumerate}[<1->]
+      \item Run the scalar RNN $h_t = \tanh(1.0\,x_t + 0.5\,h_{t-1})$ on $x=(1,-1)$: two rows of the table.
+      \item Count the parameters of an RNN with $d=10$, $n=20$, and no output layer.
+      \item Tick whether the count grows for longer sentences.
+    \end{enumerate}
+  \end{block}
+  \vskip1em
+  \margin{The two $\tanh$ values you need are printed under the table.}
+\end{frame}
+
+% ------------------------------------------------------------------ section 3
+\sectionslide{Part 3}{Five shapes of RNN}
+
+\begin{frame}{Inputs and outputs can line up in five ways}
+  \centering
+  \begin{tikzpicture}[x=0.62cm,y=0.8cm,
+      i/.style={fill=navy!15,draw=navy,minimum size=0.42cm,inner sep=0},
+      hh/.style={fill=white,draw=ink,minimum size=0.42cm,inner sep=0},
+      o/.style={fill=brick!18,draw=brick,minimum size=0.42cm,inner sep=0},
+      a/.style={-{Stealth[length=1.4mm]},line width=0.6pt},
+      lab/.style={font=\scriptsize,align=center,text width=2.6cm}]
+    \rnncol{0.6}{1}{1}{a1}
+    \node[lab] at (0.6,-1.2) {one to one\\{\color{inksoft}plain FFNN}};
+    \begin{scope}[visible on=<2->]\rnncol{3.6}{1}{1}{b1}\rnncol{4.8}{0}{1}{b2}\rnncol{6}{0}{1}{b3}
+    \draw[a,brick] (hb1)--(hb2); \draw[a,brick] (hb2)--(hb3);
+    \node[lab] at (4.8,-1.2) {one to many\\{\color{inksoft}image captioning}};\end{scope}
+    \begin{scope}[visible on=<3->]\rnncol{8.6}{1}{0}{c1}\rnncol{9.8}{1}{0}{c2}\rnncol{11}{1}{1}{c3}
+    \draw[a,brick] (hc1)--(hc2); \draw[a,brick] (hc2)--(hc3);
+    \node[lab] at (9.8,-1.2) {many to one\\{\color{inksoft}review sentiment}};\end{scope}
+    \begin{scope}[visible on=<4->]\rnncol{13.6}{1}{1}{d1}\rnncol{14.8}{1}{1}{d2}\rnncol{16}{1}{1}{d3}
+    \draw[a,brick] (hd1)--(hd2); \draw[a,brick] (hd2)--(hd3);
+    \node[lab] at (14.8,-1.2) {many to many, aligned\\{\color{inksoft}tag every word}};\end{scope}
+    \begin{scope}[visible on=<5->]\rnncol{18.4}{1}{0}{e1}\rnncol{19.6}{1}{0}{e2}\rnncol{20.8}{0}{1}{e3}\rnncol{22}{0}{1}{e4}
+    \draw[a,brick] (he1)--(he2); \draw[a,brick] (he2)--(he3); \draw[a,brick] (he3)--(he4);
+    \draw[rulegrey,dashed] (20.2,-0.4)--(20.2,2.4);
+    \node[lab] at (20.2,-1.2) {encoder--decoder\\{\color{inksoft}Malayalam $\to$ English}};\end{scope}
+  \end{tikzpicture}
+  \vskip1.2em
+  \begin{tabular}{@{}l@{\hspace{1em}}l@{}}
+    {\color{navy}$\blacksquare$} input at that step & {\color{brick}$\blacksquare$} output at that step \qquad {\color{brick}$\rightarrow$} hidden state passed on
+  \end{tabular}
+  \vskip0.6em
+  \uncover<6->{\small The cell is identical in all five. Only where we feed inputs and where we read outputs changes.}
+\end{frame}
+
+\begin{frame}{Which shape? Call it out}
+  \yourturn{4 min}
+  \renewcommand{\arraystretch}{1.45}
+  \begin{tabular}{@{}r@{\hspace{0.8em}}p{9.3cm}l@{}}
+    1. & Flag each heartbeat in a 24-hour ECG as normal or abnormal. & \uncover<2->{\alert{many to many, aligned}} \\
+    2. & Read a customer complaint and route it to one of 6 departments. & \uncover<2->{\alert{many to one}} \\
+    3. & Write a caption for a photo of a boat race. & \uncover<2->{\alert{one to many}} \\
+    4. & Translate a KSRTC announcement from Malayalam to English. & \uncover<2->{\alert{encoder--decoder}} \\
+    5. & Predict tomorrow's rainfall from the last 60 days. & \uncover<2->{\alert{many to one}} \\
+    6. & Mark which words in a sentence are person names. & \uncover<2->{\alert{many to many, aligned}} \\
+  \end{tabular}
+  \vskip0.8em
+  \uncover<2->{\small Ask of any task: \emph{do I need an answer at every step, only at the end, or a whole new sequence of a different length?}}
+\end{frame}
+
+% ------------------------------------------------------------------ section 4
+\sectionslide{Part 4}{Training: backpropagation through time}
+
+\begin{frame}{Unroll, then backpropagate as usual}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1.55cm]
+        \foreach \i in {1,2,3,4} {
+          \node[io,font=\scriptsize] (x\i) at (\i,0) {$x_\i$};
+          \node[cell,minimum width=0.85cm] (h\i) at (\i,1.3) {$h_\i$};
+          \node[io,font=\scriptsize] (L\i) at (\i,2.6) {$L_\i$};
+          \draw[arr] (x\i)--(h\i); \draw[arr] (h\i)--(L\i);
+        }
+        \foreach \i [evaluate=\i as \j using int(\i+1)] in {1,2,3} { \draw[arr] (h\i)--(h\j); }
+        \foreach \i [evaluate=\i as \j using int(\i+1)] in {1,2,3} {
+          \draw[rec,dashed,visible on=<2->] ([yshift=-0.25cm]h\j.south west) to[bend left=25] ([yshift=-0.25cm]h\i.south east);
+        }
+        \node[font=\scriptsize,text=brick,visible on=<2->] at (2.5,-0.75) {dashed: gradients flow back in time};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \begin{itemize}
+        \item Total loss is the sum over steps:\\ $L = \sum_t L_t(\hat y_t, y_t)$.
+        \item The unrolled graph is just a deep feedforward net with tied weights.
+        \item Run ordinary backprop (Lecture 19) on it. Gradients for the shared $W_{hh}$ are \emph{added up} over all steps.
+        \item This is \alert{backpropagation through time} (BPTT).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vskip0.2em
+  \margin{For long sequences we cut the unrolled graph every $K$ steps (truncated BPTT) to save memory.}
+\end{frame}
+
+\begin{frame}{Why the signal from far back gets lost}
+  To reach step $t-k$, the gradient is multiplied by one Jacobian per step:
+  \[
+    \frac{\partial \bm h_t}{\partial \bm h_{t-k}} \;=\; \prod_{j=t-k+1}^{t} \operatorname{diag}\!\big(1-\bm h_j^2\big)\,W_{hh}
+  \]
+  \vskip0.3em
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Scalar intuition.} Drop the $\tanh$ factor and use one number $w$:
+      \vskip0.3em
+      \begin{tabular}{@{}lr@{}}
+        $0.9^{50}$  & $0.005$ \\
+        $1.0^{50}$  & $1$ \\
+        $1.1^{50}$  & $117$ \\
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item $|w|<1$: the gradient \alert{vanishes}. Early words get almost no say in learning.
+        \item $|w|>1$: the gradient \alert{explodes}. One bad batch throws the weights to \texttt{NaN}.
+        \item The $\tanh$ factor $1-h^2\le 1$ only ever makes it smaller.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{We measured it}
+  \begin{columns}[c]
+    \begin{column}{0.58\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[srplot,width=8.2cm,height=5.6cm,ymode=log,xmin=0,xmax=60,ymin=1e-10,ymax=10,
+            xlabel={steps back in time, $k$},ylabel={$\|\partial \bm h_T/\partial \bm h_{T-k}\|$},
+            legend pos=north east,ytickten={-10,-8,...,0}]
+          \addplot[navy,mark=none] table[x=k,y=r07] {data/gradflow.dat};
+          \addplot[ochre,mark=none,visible on=<2->] table[x=k,y=r10] {data/gradflow.dat};
+          \addplot[brick,mark=none,visible on=<3->] table[x=k,y=r13] {data/gradflow.dat};
+          \legend{$\rho(W_{hh})=0.7$,$\rho(W_{hh})=1.0$,$\rho(W_{hh})=1.3$}
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      A $\tanh$ RNN with 64 hidden units, random inputs, $W_{hh}$ an orthogonal matrix scaled to spectral radius $\rho$. Gradient norms computed exactly by automatic differentiation.
+      \vskip0.6em
+      \begin{itemize}
+        \item With $\rho=0.7$ the gradient is below $10^{-3}$ after 10 steps.
+        \item Even $\rho=1.3$ cannot hold it up: once $\tanh$ saturates, $1-h^2$ drags it down.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{What practitioners do about it}
+  \begin{tabular}{@{}>{\raggedright}p{3.4cm}>{\raggedright\arraybackslash}p{10.2cm}@{}}
+    \toprule
+    \textbf{Problem} & \textbf{Fix} \\ \midrule
+    Exploding gradients & \textbf{Gradient clipping}: if $\|g\|>\tau$, rescale $g \leftarrow \tau\, g/\|g\|$. Cheap and used almost everywhere (Pascanu et al., 2013). \\[0.3em]
+    Vanishing gradients & Careful initialisation (e.g.\ orthogonal $W_{hh}$), ReLU-type activations, skip connections in time. These help a little. \\[0.3em]
+    & \textbf{Gated cells} (LSTM, GRU) that let the memory pass through by \emph{addition} instead of repeated multiplication. These help a lot, and they are the next lecture. \\[0.3em]
+    Long sequences, memory & Truncated BPTT: backpropagate through the last $K$ steps only. \\ \bottomrule
+  \end{tabular}
+\end{frame}
+
+% ------------------------------------------------------------------ section 5
+\sectionslide{Part 5 \textperiodcentered\ case study}{An RNN that invents Kerala place names}
+
+\begin{frame}{The task}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Data.} 184 place names from all 14 districts:\\
+      {\small\itshape kottayam, ettumanoor, vaikom, thalayolaparambu, kanjirappally, muvattupuzha, \ldots}
+      \vskip0.6em
+      \textbf{Task.} Read a name one character at a time and predict the next character. A many-to-many, aligned RNN.
+      \vskip0.6em
+      \textbf{Symbols.} 26: the letters used, a space, and ``\texttt{.}'' which marks start and end.
+      \vskip0.6em
+      \textbf{Model.} One $\tanh$ layer, 100 hidden units, softmax over 26 symbols. 15{,}326 parameters.
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1.0cm]
+        \foreach \c/\n [count=\i] in {./v,v/a,a/i,i/k,k/o,o/m,m/.} {
+          \node[io,font=\scriptsize\ttfamily] (x\i) at (\i*0.95,0) {\c};
+          \node[cell,minimum width=0.6cm,minimum height=0.55cm] (h\i) at (\i*0.95,1.1) {};
+          \node[font=\scriptsize\ttfamily,text=brick] (y\i) at (\i*0.95,2.0) {\n};
+          \draw[arr] (x\i)--(h\i); \draw[arr] (h\i)--(y\i);
+        }
+        \foreach \i [evaluate=\i as \j using int(\i+1)] in {1,...,6} { \draw[rec] (h\i)--(h\j); }
+        \node[font=\scriptsize,color=inksoft,anchor=west] at (0.3,-0.65) {input: the character just read};
+        \node[font=\scriptsize,color=brick,anchor=west] at (0.3,2.5) {target: the next character};
+      \end{tikzpicture}
+      \vskip0.8em
+      \small To generate a new name, start from ``\texttt{.}'', sample a character, feed it back in, and stop at the next ``\texttt{.}''.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{The whole of BPTT in twelve lines of NumPy}
+\begin{lstlisting}
+for t in range(len(inputs)):                                   # forward
+    hs[t] = np.tanh(Wxh @ xs[t] + Whh @ hs[t-1] + bh)          # the update rule
+    ps[t] = softmax(Why @ hs[t] + by)                          # next-character probabilities
+    loss -= np.log(ps[t][targets[t]])                          # cross-entropy
+
+dh_next = np.zeros((H, 1))
+for t in reversed(range(len(inputs))):                         # backward, through time
+    dy = ps[t].copy(); dy[targets[t]] -= 1                     # softmax + cross-entropy gradient
+    dWhy += dy @ hs[t].T
+    dh   = Why.T @ dy + dh_next                                # from now + from the future
+    draw = (1 - hs[t]**2) * dh                                 # back through tanh
+    dWxh += draw @ xs[t].T;  dWhh += draw @ hs[t-1].T          # shared weights: sums
+    dh_next = Whh.T @ draw                                     # one step further back
+\end{lstlisting}
+  \vskip0.4em
+  \small Line 13 is where vanishing happens: \texttt{dh\_next} is multiplied by $W_{hh}^\top$ and by $(1-h^2)$ at every step.\\
+  \margin{Full script (about 100 lines, NumPy only): \texttt{case\_study/char\_rnn\_places.py} in the course repository.}
+\end{frame}
+
+\begin{frame}{What it wrote as training went on}
+  \small
+  Eight samples at each checkpoint, temperature 0.8, from one run of the script.
+  \vskip0.6em
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}r r p{10.6cm}@{}}
+    \toprule
+    \textbf{names seen} & \textbf{loss} & \textbf{samples} \\ \midrule
+    0      & --   & \itshape owtdfv, utkffejlmztozdcn, lkwolke, cpdh, ucevlvosamlvhn igbuh \\
+    \pause
+    500    & 2.52 & \itshape peraky, sremalarezriy, dadanny, malahr, katakyarir, mathi, kalthy \\
+    \pause
+    2{,}000  & 1.75 & \itshape njomar, paramani, wapunan, alathila, thlapkura, kaljavankokam, chararady \\
+    \pause
+    8{,}000  & 1.09 & \itshape putheparam, kanhayanum, nedumum, mahappady, kuttapalanga, kalampura, tharaybalam \\
+    \pause
+    30{,}000 & 0.62 & \itshape peravolera, kanjiyurasaera, \textup{\alert{munnar}}, koledy, \textup{\alert{kunnamkulam}}, balaratthassery, \textup{\alert{valavoor}} \\ \bottomrule
+  \end{tabular}
+  \vskip0.8em
+  \begin{itemize}
+    \item By 2{,}000 it has learnt Malayalam spelling habits: \emph{-am}, \emph{-ady}, the ``zh'' and ``nj'' pairs.
+    \item By 8{,}000 it uses real endings: \emph{-param}, \emph{-palam}, \emph{-ady}.
+    \item By 30{,}000 the names in \alert{red} are copied straight from the training list.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Good model, or a parrot?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      After 30{,}000 names, \alert{74\%} of its samples are names it was trained on.
+      \vskip0.6em
+      Training loss kept falling. The model was simply memorising 184 names. You have seen this before: it is \textbf{overfitting} (Lecture 9), now in a sequence model.
+      \vskip0.6em
+      \textbf{What we would do in practice}
+      \begin{itemize}
+        \item hold out 20\% of the names and stop when \emph{their} loss stops falling;
+        \item get more data (Kerala has well over a thousand villages);
+        \item use a smaller hidden state or dropout.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \textbf{Some names it made up}\\[0.3em]
+      {\itshape alappuram, bharanassery, chermanangad, cherujalakkara, chappally, edappala, guruvatta, kainakkara}
+      \vskip1em
+      Read them aloud. They sound like Kerala, because the RNN has learnt which letters follow which, and which endings close a name.
+      \vskip1em
+      \margin{Worksheet Part C: what had it learned by 500 names?}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ section 6
+\begin{frame}{Game: Hidden State}
+  \yourturn{12 min}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \centering
+      \qrcode[height=4.0cm]{\gameurl hidden-state.html}\\[0.4em]
+      {\scriptsize\ttfamily \gameurlshort}
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      You \emph{are} the recurrent weight. Ten rounds:
+      \begin{enumerate}
+        \item \textbf{Tune the memory.} Drag $w_{hh}$ and $w_{xh}$ until your hidden state traces the target curve.
+        \item \textbf{Keep the gradient alive.} Pick $w_{hh}$ so a gradient survives 40 steps without exploding.
+        \item \textbf{Name the shape.} Ten seconds per task.
+      \end{enumerate}
+      \vskip0.6em
+      Scores go to the room screen under your nickname. Write your score and the gradient band from round 6 in worksheet Part D.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{What the game was teaching}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Memory}
+      \begin{itemize}
+        \item $0<w_{hh}<1$: a pulse fades geometrically.\\ Small $w_{hh}$ forgets in two or three steps.
+        \item $w_{hh}$ close to 1: long memory, but every new input piles on top and the state saturates at $\pm1$.
+        \item $w_{hh}<0$: the state flips sign each step.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \textbf{Learning}
+      \begin{itemize}
+        \item The gradient survived 40 steps only for $|w_{hh}|$ between about $0.944$ and $1.059$.
+        \item Training has to find and stay inside that thin band, for every unit, while also solving the task.
+        \item That is too fragile. Next session: a cell whose memory path is built to have a factor near 1.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Exit ticket (worksheet Part E)}
+  \yourturn{5 min}
+  \begin{enumerate}
+    \item An RNN with $d=50$ inputs and $n=64$ hidden units (no output layer) has how many parameters?\\
+      (a) 3{,}264 \quad (b) 7{,}360 \quad (c) 7{,}296 \quad (d) depends on the sequence length
+    \item In BPTT the gradient for $W_{hh}$ is
+      (a) taken from the last step only \quad (b) averaged over epochs \quad (c) summed over all time steps \quad (d) zero for $t=1$
+    \item Gradient clipping is a fix for\\
+      (a) vanishing gradients \quad (b) exploding gradients \quad (c) overfitting \quad (d) slow inference
+  \end{enumerate}
+  \vskip0.6em
+  \uncover<+->{\small Answers: 1 (b) $64\cdot50+64^2+64=7{,}360$ \quad 2 (c) \quad 3 (b)}
+\end{frame}
+
+\begin{frame}{To take away}
+  \begin{enumerate}
+    \item An RNN carries a fixed-size hidden state and updates it with the same weights at every step: $\bm h_t=\tanh(W_{xh}\bm x_t+W_{hh}\bm h_{t-1}+\bm b)$.
+    \item Where you feed inputs and read outputs gives five shapes: one-to-many, many-to-one, aligned, encoder--decoder.
+    \item Training is ordinary backpropagation on the unrolled graph, with gradients summed over time.
+    \item The gradient is multiplied by $W_{hh}$ and $\tanh'$ once per step, so it vanishes or explodes over long gaps.
+    \item Clipping handles explosion. Vanishing needs a different cell.
+  \end{enumerate}
+  \vskip1em
+  \textbf{Next session (Lecture 21):} LSTM and GRU, cells with gates that decide what to forget, what to write and what to show; bidirectional RNNs; a case study that compares all four.
+\end{frame}
+
+\begin{frame}{References}
+  \small
+  \begin{itemize}[<1->]
+    \item I.\ Goodfellow, Y.\ Bengio, A.\ Courville. \emph{Deep Learning}. MIT Press, 2016. Chapter 10.
+    \item J.\ L.\ Elman. Finding structure in time. \emph{Cognitive Science} 14(2):179--211, 1990.
+    \item Y.\ Bengio, P.\ Simard, P.\ Frasconi. Learning long-term dependencies with gradient descent is difficult. \emph{IEEE Trans.\ Neural Networks} 5(2):157--166, 1994.
+    \item R.\ Pascanu, T.\ Mikolov, Y.\ Bengio. On the difficulty of training recurrent neural networks. \emph{ICML} 2013.
+    \item A.\ Karpathy. The unreasonable effectiveness of recurrent neural networks. Blog post, 2015. (The place-name script follows his \texttt{min-char-rnn}.)
+  \end{itemize}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,497 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\usepackage{srlecture}
+\input{common}
+\title{LSTM, GRU and Bidirectional RNNs}
+\renewcommand{\lecturelabel}{QIPPG103 \textperiodcentered\ Lecture 21 \textperiodcentered\ LSTM, GRU, BiLSTM}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north east] at ([xshift=-1.2em,yshift=-1.0em]current page.north east) {\includegraphics[height=1.25cm]{iiitk.png}};
+  \end{tikzpicture}
+  \vskip3.2em
+  {\small\scshape\color{inksoft}\coursename\par}
+  \vskip1.2em
+  {\color{navy}\fontsize{28}{32}\selectfont LSTM, GRU and Bidirectional RNNs\par}
+  \vskip0.5em
+  {\large\itshape Giving the network a choice about what to remember\par}
+  \vskip0.6em{\color{rulegrey}\rule{0.45\textwidth}{0.4pt}}\par\vskip0.8em
+  {\normalsize Dr.\ Sara Renjit\par}
+  {\small\color{inksoft}Indian Institute of Information Technology Kottayam\par}
+  \vskip0.4em
+  {\small\color{inksoft}Lecture 21 of 27 \textperiodcentered\ offline session \textperiodcentered\ 90 minutes\par}
+\end{frame}
+
+\begin{frame}{Where we stopped last time}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      A plain RNN rewrites its whole note every step:
+      \[ \bm h_t = \tanh(W_{xh}\bm x_t + W_{hh}\bm h_{t-1} + \bm b) \]
+      The gradient that reaches $k$ steps back has been multiplied by $W_{hh}$ and by $\tanh'$ $k$ times.
+      \vskip0.6em
+      In the \emph{Hidden State} game, the gradient survived 40 steps only when $|w_{hh}|$ was between $0.944$ and $1.059$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Who remembers this?}\\[0.3em]
+      ``The \alert{keys} to the old wooden cabinet in my grandmother's house \underline{\hspace{1.2cm}} on the table.''
+      \vskip0.6em
+      To choose \emph{is} or \emph{are}, the network must carry ``keys is plural'' across nine words of distraction, then use it once, then drop it.
+      \vskip0.6em
+      Today: a cell that can \textbf{keep}, \textbf{write} and \textbf{show} on purpose.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Plan for today}
+  \begin{tabular}{@{}r@{\hspace{1.2em}}p{9.4cm}@{\hspace{1em}}l@{}}
+    \toprule
+    \textbf{min} & \textbf{What we do} & \textbf{Worksheet} \\ \midrule
+    0--5   & Recap: why plain RNNs forget & \\
+    5--30  & The LSTM cell: three gates and a conveyor belt; one step by hand & Part A \\
+    30--40 & GRU: the same idea with two gates & Part B \\
+    40--50 & Bidirectional and stacked RNNs & \\
+    50--62 & Case study: how far back can each cell remember? & Part C \\
+    62--80 & Game: \emph{Gatekeeper} & Part D \\
+    80--90 & Exit ticket; the Colab lab for home & Part E \\ \bottomrule
+  \end{tabular}
+  \vskip1em
+  \margin{Reading: Goodfellow et al., \emph{Deep Learning}, Section 10.10. C.\ Olah, ``Understanding LSTM Networks'' (2015) is an excellent visual companion.}
+\end{frame}
+
+\sectionslide{Part 1}{The LSTM cell}
+
+\begin{frame}{The idea before the equations}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      Give the network two things to carry:
+      \begin{itemize}
+        \item a \textbf{cell state} $\bm c_t$: long-term memory, a conveyor belt along the top of the cell that changes only in small, deliberate ways;
+        \item a \textbf{hidden state} $\bm h_t$: what the cell chooses to show the outside world at this step.
+      \end{itemize}
+      \vskip0.5em
+      Three \textbf{gates}, each a number between 0 and 1 per memory slot, decide:
+      \begin{enumerate}
+        \item \textbf{forget} $f$: how much of the old belt to keep;
+        \item \textbf{input} $i$: how much of the new candidate to write;
+        \item \textbf{output} $o$: how much of the belt to reveal.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{A notebook analogy}\\[0.3em]
+      \renewcommand{\arraystretch}{1.25}
+      \begin{tabular}{@{}ll@{}}
+        cell state & the notebook \\
+        forget gate & the eraser \\
+        input gate & the pen \\
+        output gate & which page you show \\
+        hidden state & what you say aloud \\
+      \end{tabular}
+      \vskip0.6em
+      \small A plain RNN has no eraser and no pen: it writes the whole page again from scratch at every word.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Inside one LSTM cell}
+  \centering
+  \resizebox{!}{5.6cm}{%
+  \begin{tikzpicture}[x=1.05cm,y=0.95cm]
+    \draw[rulegrey,fill=paperwash,rounded corners=6pt] (0.3,-0.2) rectangle (8.2,4.1);
+    % belts
+    \draw[arr,line width=1.4pt,color=navy] (-0.6,3.4) node[left,font=\small,text=ink]{$\bm c_{t-1}$} -- (9.1,3.4) node[right,font=\small,text=ink]{$\bm c_t$};
+    \draw[line width=0.8pt] (-0.6,0.3) node[left,font=\small]{$\bm h_{t-1}$} -- (5.9,0.3);
+    \draw[line width=0.8pt] (0.9,-0.9) node[below,font=\small]{$\bm x_t$} -- (0.9,0.3);
+    \fill (0.9,0.3) circle (1.5pt);
+    % gate layers
+    \node[gate,fill=white,minimum size=0.6cm,visible on=<2->] (f) at (1.7,1.5) {$\sigma$};
+    \node[gate,fill=white,minimum size=0.6cm,visible on=<3->] (i) at (3.0,1.5) {$\sigma$};
+    \node[gate,fill=white,minimum size=0.6cm,font=\tiny,visible on=<3->] (g) at (4.2,1.5) {tanh};
+    \node[gate,fill=white,minimum size=0.6cm,visible on=<4->] (o) at (5.9,1.5) {$\sigma$};
+    \foreach \n/\s in {f/2,i/3,g/3,o/4} { \draw[arr,visible on=<\s->] (\n |- 0,0.3) -- (\n); }
+    \foreach \x/\s in {1.7/2,3.0/3,4.2/3} { \fill[visible on=<\s->] (\x,0.3) circle (1.5pt); }
+    % ops
+    \node[op,visible on=<2->] (xf) at (1.7,3.4) {$\times$};
+    \node[op,visible on=<3->] (xi) at (4.2,2.5) {$\times$};
+    \node[op,visible on=<3->] (pl) at (4.2,3.4) {$+$};
+    \node[op,font=\tiny,minimum size=0.55cm,visible on=<4->] (th) at (7.0,2.5) {tanh};
+    \node[op,visible on=<4->] (xo) at (7.0,1.5) {$\times$};
+    \draw[arr,visible on=<2->] (f) -- (xf); \draw[arr,visible on=<3->] (g) -- (xi); \draw[arr,visible on=<3->] (i) |- (xi); \draw[arr,visible on=<3->] (xi) -- (pl);
+    \draw[arr,visible on=<4->] (7.0,3.4) -- (th); \fill[visible on=<4->] (7.0,3.4) circle (1.5pt);
+    \draw[arr,visible on=<4->] (th) -- (xo); \draw[arr,visible on=<4->] (o) -- (xo);
+    \draw[arr,visible on=<4->] (xo) |- (9.1,0.3) node[right,font=\small]{$\bm h_t$};
+    \draw[arr,visible on=<4->] (7.6,0.3) -- (7.6,4.6) node[above,font=\small]{$\bm h_t$};
+    % labels
+    \node[font=\scriptsize,text=brick,visible on=<2->] at (1.2,1.0) {forget};
+    \node[font=\scriptsize,text=brick,visible on=<3->] at (2.5,1.0) {input};
+    \node[font=\scriptsize,text=brick,visible on=<3->] at (4.2,0.95) {cand.};
+    \node[font=\scriptsize,text=brick,visible on=<4->] at (6.45,1.0) {output};
+    \node[font=\scriptsize,text=navy,anchor=south] at (3.0,3.5) {cell state: the conveyor belt};
+  \end{tikzpicture}}
+  \vskip0.2em
+  \uncover<5->{\small Each gate looks at the same two things, $\bm h_{t-1}$ and $\bm x_t$, through its own weights. Only $\times$ and $+$ touch the belt.}
+\end{frame}
+
+\begin{frame}{The equations (Hochreiter \& Schmidhuber, 1997; forget gate: Gers et al., 2000)}
+  \vskip-0.3em
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{align*}
+        \bm f_t &= \sigma\big(W_f[\bm h_{t-1},\bm x_t] + \bm b_f\big) && \text{forget}\\
+        \bm i_t &= \sigma\big(W_i[\bm h_{t-1},\bm x_t] + \bm b_i\big) && \text{input}\\
+        \bm g_t &= \tanh\big(W_g[\bm h_{t-1},\bm x_t] + \bm b_g\big) && \text{candidate}\\
+        \bm o_t &= \sigma\big(W_o[\bm h_{t-1},\bm x_t] + \bm b_o\big) && \text{output}\\[0.3em]
+        \onslide<2->{\bm c_t} &\onslide<2->{= \bm f_t\odot \bm c_{t-1} \;+\; \bm i_t\odot \bm g_t && \text{\alert{update the belt}}}\\
+        \onslide<3->{\bm h_t} &\onslide<3->{= \bm o_t\odot \tanh(\bm c_t) && \text{what is shown}}
+      \end{align*}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{itemize}
+        \item $[\bm h_{t-1},\bm x_t]$ means the two vectors stacked into one.
+        \item $\sigma$ squashes to $(0,1)$: a gate is a dimmer switch, not an on/off switch, so it stays differentiable.
+        \item $\odot$ is element by element: each memory slot has its own gates.
+        \item The candidate uses $\tanh$ so it can write positive or negative values.
+      \end{itemize}
+      \vskip0.4em
+      \small Read the belt update aloud: \emph{keep this much of the old, add this much of the new}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{The gates, word by word}
+  \small
+  One memory slot tracks ``is the subject plural?'' in\\[0.2em]
+  \emph{The keys to the old cabinet \underline{\ are\ } on the table.}
+  \vskip0.6em
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}l c c c l@{}}
+    \toprule
+    \textbf{word} & $f$ \textbf{(keep)} & $i$ \textbf{(write)} & $o$ \textbf{(show)} & \textbf{what happens on the belt} \\ \midrule
+    The       & low  & low  & low  & clear out the previous sentence's subject \\
+    \pause
+    keys      & --   & \alert{high} & low  & write ``plural'' \\
+    \pause
+    to the old cabinet & \alert{high} & low & low & hold it; ``cabinet'' is singular but must not overwrite \\
+    \pause
+    \underline{\ \ ?\ \ } & high & low & \alert{high} & reveal ``plural'' so the output picks \emph{are} \\
+    \pause
+    on the table. & low & low & low & done with it; free the slot \\ \bottomrule
+  \end{tabular}
+  \vskip0.8em
+  These values are illustrative. A trained LSTM learns them from data; nobody programs them. Researchers have found individual LSTM units that behave much like this, for example units tracking quotes and line lengths in text (Karpathy, Johnson \& Fei-Fei, 2015).
+\end{frame}
+
+\begin{frame}{Why the gradient survives}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      Along the belt,
+      \[ \bm c_t = \bm f_t\odot \bm c_{t-1} + \bm i_t\odot \bm g_t \]
+      so (holding the gates fixed)
+      \[ \frac{\partial \bm c_t}{\partial \bm c_{t-1}} = \operatorname{diag}(\bm f_t). \]
+      No weight matrix, no $\tanh'$. Going $k$ steps back multiplies by $f$ values only.
+      \vskip0.4em
+      If the network learns $f\approx 1$ for a slot, its gradient passes back almost untouched: $0.99^{100}=0.37$, while $0.9^{100}$ would be $0.00003$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Plain RNN}: memory path is \emph{multiplicative}, the same matrix every step.\\[0.3em]
+      \textbf{LSTM}: memory path is \emph{additive}, with a per-slot, per-step gate the network controls.
+      \vskip0.6em
+      \textbf{A practical detail that matters.} Initialise the forget-gate bias to a positive value (1 is common; Jozefowicz et al., 2015) so that a new network starts out \emph{remembering}. You will see in the case study what happens without it.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{One LSTM step by hand}
+  \small
+  One memory slot. $c_{t-1}=0.8$. The pre-activations (the numbers inside $\sigma$ and $\tanh$) have already been computed:
+  \[ z_f = 2.0,\qquad z_i = 0.0,\qquad z_g = 1.0,\qquad z_o = 1.0 \]
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}l l l@{}}
+    \toprule
+    forget & $f=\sigma(2.0)$ & $=0.881$ \\
+    input & $i=\sigma(0.0)$ & $=0.500$ \\
+    candidate & $g=\tanh(1.0)$ & $=0.762$ \\
+    output & $o=\sigma(1.0)$ & $=0.731$ \\ \midrule
+    \uncover<2->{belt & $c_t = 0.881(0.8) + 0.500(0.762) = 0.705+0.381$ & $=\alert{1.085}$} \\
+    \uncover<3->{shown & $h_t = 0.731\,\tanh(1.085) = 0.731(0.795)$ & $=\alert{0.581}$} \\ \bottomrule
+  \end{tabular}
+  \vskip0.6em
+  \uncover<3->{Note that $c_t$ went above 1. The belt is not squashed by $\tanh$; only what is \emph{shown} is.}
+\end{frame}
+
+\begin{frame}{Worksheet, Part A}
+  \yourturn{5 min}
+  \vskip1em
+  \begin{block}{In pairs}
+    \begin{enumerate}[<1->]
+      \item The gates are given. Compute the new belt $c_t$ and the output $h_t$.
+      \item Match three wishes (ignore a word, wipe the memory, stay silent) to gate settings.
+    \end{enumerate}
+  \end{block}
+  \vskip0.6em
+\end{frame}
+
+\begin{frame}{What the gates cost}
+  Each of the four blocks ($f, i, g, o$) is as big as a whole plain RNN layer:
+  \[
+    \text{RNN: } n(n+d)+n \qquad \text{GRU: } 3\big[n(n+d)+n\big] \qquad \text{LSTM: } 4\big[n(n+d)+n\big]
+  \]
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{@{}lrrr@{}}
+    \toprule
+    & \textbf{Plain RNN} & \textbf{GRU} & \textbf{LSTM} \\ \midrule
+    $d=3$, $n=4$ & 32 & 96 & 128 \\
+    $d=100$, $n=128$ (a word-embedding model) & 29{,}312 & 87{,}936 & 117{,}248 \\ \bottomrule
+  \end{tabular}
+  \vskip0.8em
+  \small Libraries can differ slightly. Keras's GRU by default keeps two bias vectors per gate (\texttt{reset\_after=True}), giving $3[n(n+d)+2n]=88{,}320$ for the second row. Check with \texttt{model.summary()}.
+\end{frame}
+
+\sectionslide{Part 2}{The GRU: two gates instead of three}
+
+\begin{frame}{Gated recurrent unit (Cho et al., 2014)}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{align*}
+        \bm z_t &= \sigma\big(W_z[\bm h_{t-1},\bm x_t]+\bm b_z\big) && \text{update}\\
+        \bm r_t &= \sigma\big(W_r[\bm h_{t-1},\bm x_t]+\bm b_r\big) && \text{reset}\\
+        \tilde{\bm h}_t &= \tanh\big(W_h[\bm r_t\odot\bm h_{t-1},\,\bm x_t]+\bm b_h\big) && \text{candidate}\\[0.3em]
+        \bm h_t &= (1-\bm z_t)\odot\bm h_{t-1} + \bm z_t\odot\tilde{\bm h}_t
+      \end{align*}
+      \vskip0.4em
+      \small Conventions differ: PyTorch writes the last line with $\bm z_t$ and $1-\bm z_t$ swapped. Same model, the gate just means the opposite.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{What changed from LSTM}
+      \begin{itemize}
+        \item No separate belt: $\bm h_t$ is both memory and output.
+        \item Forget and input are \emph{tied}: one gate $z$ decides the mix. Writing new information automatically erases the same amount of old.
+        \item The reset gate $r$ decides how much of the past the candidate may look at.
+        \item No output gate: the cell cannot hide what it remembers.
+      \end{itemize}
+      \vskip0.4em
+      The memory path is still additive, so gradients survive the same way.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Choosing between them}
+  \small
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}>{\raggedright}p{3.1cm}>{\raggedright}p{3.2cm}>{\raggedright}p{3.2cm}>{\raggedright\arraybackslash}p{3.6cm}@{}}
+    \toprule
+    & \textbf{Plain RNN} & \textbf{GRU} & \textbf{LSTM} \\ \midrule
+    Gates & none & update, reset & forget, input, output \\
+    State carried & $\bm h$ & $\bm h$ & $\bm h$ and $\bm c$ \\
+    Weights (same $n$) & $1\times$ & $3\times$ & $4\times$ \\
+    Long-range memory & poor & good & good \\
+    Can count / accumulate & no & weakly (writing erases) & yes (add with $f=1$, $i=1$) \\
+    Reach for it when & short sequences, teaching & smaller data or compute budget & the default; long or structured sequences \\ \bottomrule
+  \end{tabular}
+  \vskip0.8em
+  Large comparisons (Chung et al., 2014; Jozefowicz et al., 2015; Greff et al., 2017) found no clear winner between GRU and LSTM across tasks. Try both; tune the size and learning rate first.
+\end{frame}
+
+\begin{frame}{Worksheet, Part B}
+  \yourturn{3 min}
+  \vskip1em
+  \begin{block}{GRU step}
+    Previous state $h_{t-1}=0.6$, update gate $z=0.73$, candidate $\tilde h=0.20$.
+    \begin{enumerate}[<1->]
+      \item Compute $h_t=(1-z)h_{t-1}+z\tilde h$.
+      \item Which $z$ keeps the old state? Which replaces it?
+    \end{enumerate}
+    \vskip0.4em Think about, no need to write: why can a GRU not hold 5 and then add 3 to get 8?
+  \end{block}
+\end{frame}
+
+\sectionslide{Part 3}{Reading both ways, and stacking}
+
+\begin{frame}{Bidirectional RNNs (Schuster \& Paliwal, 1997)}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1.3cm]
+        \foreach \w [count=\i] in {Kerala,Blasters,won,today} {
+          \node[font=\small\itshape] (w\i) at (\i,0) {\w};
+          \node[cell,minimum width=0.85cm,minimum height=0.55cm] (f\i) at (\i,1.0) {};
+          \node[cell,minimum width=0.85cm,minimum height=0.55cm,draw=brick,visible on=<2->] (b\i) at (\i,1.9) {};
+          \node[io,minimum size=0.5cm,font=\tiny,visible on=<3->] (y\i) at (\i,3.0) {$y_\i$};
+          \draw[arr] (w\i) -- (f\i); \draw[arr,visible on=<2->] (w\i.north east) to[bend right=30] (b\i.south east);
+          \draw[arr,visible on=<3->] (b\i) -- (y\i); \draw[arr,visible on=<3->] (f\i.north west) to[bend left=30] (y\i.south west);
+        }
+        \foreach \i [evaluate=\i as \j using int(\i+1)] in {1,2,3} {
+          \draw[arr,navy] (f\i) -- (f\j); \draw[arr,brick,visible on=<2->] (b\j) -- (b\i);
+        }
+        \node[font=\scriptsize,text=navy,anchor=east] at (0.5,1.0) {forward};
+        \node[font=\scriptsize,text=brick,anchor=east,visible on=<2->] at (0.5,1.9) {backward};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      Run one RNN left to right and a second, with its own weights, right to left. At each step join the two:
+      \[ \bm h_t = [\,\overrightarrow{\bm h}_t\,;\,\overleftarrow{\bm h}_t\,] \]
+      \textbf{Why.} Is ``Kerala'' a place or a team? In ``Kerala Blasters won'' you only know from the \emph{next} word. In ``Kerala received heavy rain'' it is a place.
+      \vskip0.4em
+      \textbf{Good for} tagging words, named entities, the encoder in translation, classifying a whole review.\\
+      \textbf{Not for} live speech or next-word prediction: the future is not available yet.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Stacked (deep) recurrent layers}
+  \begin{columns}[c]
+    \begin{column}{0.45\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1.15cm,y=0.95cm]
+        \foreach \l in {1,2,3} { \foreach \t in {1,2,3,4} {
+          \node[cell,minimum width=0.7cm,minimum height=0.5cm,visible on=<\l->] (n\l\t) at (\t,\l) {};
+        } }
+        \foreach \t in {1,2,3,4} {
+          \node[io,minimum size=0.45cm,font=\tiny] (x\t) at (\t,0) {$x_\t$};
+          \draw[arr] (x\t)--(n1\t); \draw[arr,visible on=<2->] (n1\t)--(n2\t); \draw[arr,visible on=<3->] (n2\t)--(n3\t);
+        }
+        \foreach \l in {1,2,3} { \foreach \t [evaluate=\t as \u using int(\t+1)] in {1,2,3} { \draw[rec,visible on=<\l->] (n\l\t)--(n\l\u); } }
+        \foreach \l in {1,2,3} { \node[font=\scriptsize,anchor=east,text=inksoft,visible on=<\l->] at (0.45,\l) {layer \l}; }
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      The hidden states of layer 1 are the input sequence of layer 2.
+      \begin{itemize}
+        \item Lower layers tend to capture local patterns (characters, short phrases); higher layers longer structure.
+        \item Two to four layers is typical. Beyond that, training gets hard without residual connections.
+        \item Put dropout \emph{between} layers.
+      \end{itemize}
+      \vskip0.4em
+      In Keras, every layer except the top one needs \texttt{return\_sequences=True}, so it hands the next layer a full sequence instead of only its last state.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\sectionslide{Part 4 \textperiodcentered\ case study}{How far back can each cell remember?}
+
+\begin{frame}{The experiment}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Task.} Each sequence starts with one of 8 ``key'' symbols, followed by $T-1$ random distractor symbols. At the end, name the key.
+      \vskip0.3em
+      {\centering\small\ttfamily \alert{K5} d3 d7 d1 d1 d6 \ldots\ d2 \quad $\rightarrow$ \quad K5\par}
+      \vskip0.5em
+      A coin-toss guess scores $1/8 = 12.5\%$. Nothing about the answer is in the last $T-1$ symbols, so the cell must hold one fact for $T$ steps.
+      \vskip0.5em
+      \textbf{Set-up.} 32 hidden units, Adam, learning rate $0.003$, gradient clipping at 5, 5{,}000 batches of 64, two random seeds. Test accuracy on 2{,}000 fresh sequences. Implemented in JAX; script in the course repository.
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \textbf{Why this task?} It is the cleanest test of the claim from Part 1. In real data, a long dependency is mixed with many short ones and you cannot see which is which.
+      \vskip0.5em
+      \textbf{Gate initialisation.}\\ LSTM: forget-gate bias $+3$.\\ GRU: update-gate bias $-3$.\\ Both mean ``start out keeping the memory''.
+      \vskip0.5em
+      Before you see the results: \alert{write your prediction} in worksheet Part C. At what $T$ does each cell fail?
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Results}
+  \input{data/memtask_table.tex}
+\end{frame}
+
+\begin{frame}{What we learned from it}
+  \input{data/memtask_lessons.tex}
+\end{frame}
+
+\begin{frame}[fragile]{Lab for home: sentiment on IMDb reviews}
+  \small
+  Run in Google Colab (free GPU: \emph{Runtime $\rightarrow$ Change runtime type}). About 3 minutes per model.
+\begin{lstlisting}
+from tensorflow import keras
+from tensorflow.keras import layers
+
+(x_tr, y_tr), (x_te, y_te) = keras.datasets.imdb.load_data(num_words=20000)
+x_tr = keras.utils.pad_sequences(x_tr, maxlen=200)       # cut or pad every review to 200 words
+x_te = keras.utils.pad_sequences(x_te, maxlen=200)
+
+model = keras.Sequential([
+    layers.Input(shape=(200,)),
+    layers.Embedding(20000, 64),
+    layers.Bidirectional(layers.LSTM(64)),                # swap: SimpleRNN, GRU, LSTM without Bidirectional
+    layers.Dense(1, activation="sigmoid"),
+])
+model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+model.summary()                                           # compare the parameter counts with Part A
+model.fit(x_tr, y_tr, batch_size=64, epochs=3, validation_split=0.2)
+print(model.evaluate(x_te, y_te))
+\end{lstlisting}
+  Fill in the table in worksheet Part E for four versions of line 11. Bring it next class.
+\end{frame}
+
+\begin{frame}{Game: Gatekeeper}
+  \yourturn{15 min}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \centering
+      \qrcode[height=4.0cm]{\gameurl gatekeeper.html}\\[0.4em]
+      {\scriptsize\ttfamily \gameurlshort}
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      You are the gates of a one-slot LSTM. Tokens arrive one at a time. Before each one, open or close the \textbf{forget}, \textbf{input} and \textbf{output} gates. Then press \emph{Step} and watch the belt.
+      \vskip0.5em
+      Five levels: \emph{store and recall}, \emph{overwrite}, \emph{count}, \emph{recall twice}, and a last level where you play a \textbf{GRU} with only one gate.
+      \vskip0.5em
+      Wrong numbers on the output, or anything shown when it should be silent, costs points. Fill in worksheet Part D as you play.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{What the game was teaching}
+  \begin{itemize}
+    \item \textbf{Forget means keep.} $f=1$ keeps the memory; $f=0$ erases it. Most people closed it on level 1 and lost the number.
+    \item \textbf{Overwrite} needs two gates at once: $f=0$ to erase and $i=1$ to write.
+    \item \textbf{Count} works because the belt adds: $f=1, i=1$ on every star.
+    \item \textbf{Output} is separate from memory. The cell can remember without saying anything, which is what stops ``plural'' from leaking into every word.
+    \item \textbf{GRU}: one gate $z$ moves memory and new input in opposite directions. Store and overwrite are easy; counting is impossible, because writing always erases.
+  \end{itemize}
+  \vskip0.6em
+  In a trained network these gates are not 0 or 1 but values in between, learned by gradient descent, one per memory slot.
+\end{frame}
+
+\begin{frame}{Exit ticket (worksheet Part E)}
+  \yourturn{5 min}
+  \begin{enumerate}
+    \item In an LSTM, setting the forget gate to 1 and the input gate to 0 makes the cell\\
+      (a) erase its memory \quad (b) keep its memory unchanged \quad (c) copy the input \quad (d) output zero
+    \item Why do LSTM gradients survive long gaps better than plain RNN gradients?\\
+      (a) they use ReLU \quad (b) the cell state is updated additively, scaled only by the forget gate\\ (c) they have more parameters \quad (d) they are trained with a smaller learning rate
+    \item Which task \emph{cannot} use a bidirectional LSTM?\\
+      (a) named-entity tagging \quad (b) review sentiment \quad (c) live captioning of a speech as it is spoken \quad (d) POS tagging
+  \end{enumerate}
+  \vskip0.4em
+  \uncover<+->{\small Answers: 1 (b) \quad 2 (b) \quad 3 (c)}
+\end{frame}
+
+\begin{frame}{To take away}
+  \begin{enumerate}
+    \item The LSTM keeps a cell state that changes only by gated multiplication and addition: $\bm c_t = \bm f_t\odot\bm c_{t-1}+\bm i_t\odot\bm g_t$.
+    \item Forget, input and output gates are sigmoids in $(0,1)$, learned per memory slot and per step.
+    \item The additive path lets gradients travel far back; initialise the forget bias so the cell starts by remembering.
+    \item A GRU ties forget and input into one update gate, has no separate cell state, and uses 3 weight blocks instead of 4.
+    \item Bidirectional RNNs read both ways when the whole sequence is available; stacked RNNs build hierarchy.
+  \end{enumerate}
+  \vskip0.8em
+  \textbf{Coming up:} CNNs (Lectures 22--23), then reinforcement learning (Lecture 24), where an LSTM can supply the agent's state when one observation is not enough.
+\end{frame}
+
+\begin{frame}{References}
+  \footnotesize
+  \begin{itemize}[<1->]
+    \item S.\ Hochreiter, J.\ Schmidhuber. Long short-term memory. \emph{Neural Computation} 9(8):1735--1780, 1997.
+    \item F.\ A.\ Gers, J.\ Schmidhuber, F.\ Cummins. Learning to forget: continual prediction with LSTM. \emph{Neural Computation} 12(10):2451--2471, 2000.
+    \item K.\ Cho et al. Learning phrase representations using RNN encoder--decoder for statistical machine translation. \emph{EMNLP} 2014.
+    \item J.\ Chung, C.\ Gulcehre, K.\ Cho, Y.\ Bengio. Empirical evaluation of gated recurrent neural networks on sequence modeling. arXiv:1412.3555, 2014.
+    \item R.\ Jozefowicz, W.\ Zaremba, I.\ Sutskever. An empirical exploration of recurrent network architectures. \emph{ICML} 2015.
+    \item K.\ Greff et al. LSTM: a search space odyssey. \emph{IEEE Trans.\ Neural Networks and Learning Systems} 28(10), 2017.
+    \item M.\ Schuster, K.\ K.\ Paliwal. Bidirectional recurrent neural networks. \emph{IEEE Trans.\ Signal Processing} 45(11), 1997.
+    \item A.\ Karpathy, J.\ Johnson, L.\ Fei-Fei. Visualizing and understanding recurrent networks. arXiv:1506.02078, 2015.
+    \item I.\ Goodfellow, Y.\ Bengio, A.\ Courville. \emph{Deep Learning}. MIT Press, 2016. Section 10.10.
+  \end{itemize}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,14 @@
+\begin{columns}[T]
+  \begin{column}{0.5\textwidth}
+    \textbf{1. Gates move the limit, they do not remove it.} With the same training budget the plain RNN fails between $T=40$ and $T=80$; the gated cells reach $T=160$.
+    \vskip0.6em
+    \textbf{2. Initialisation can matter more than architecture.} With its update-gate bias at 0, the GRU starts by mixing half of the old memory away at every step: $0.5^{40}\approx 10^{-12}$. It never got a gradient to learn from and did \emph{worse} than the plain RNN.
+  \end{column}
+  \begin{column}{0.47\textwidth}
+    \textbf{3. Report seeds, not single runs.} One LSTM seed at $T=160$ failed while the other was perfect. A single run would have told either story.
+    \vskip0.6em
+    \textbf{4. This is a toy.} On real text the gap is usually smaller, because most useful dependencies are short. Check it yourself with the IMDb lab.
+    \vskip0.6em
+    \margin{Script: \texttt{case\_study/memory\_length\_experiment.py}. About 10 minutes on a laptop CPU.}
+  \end{column}
+\end{columns}
