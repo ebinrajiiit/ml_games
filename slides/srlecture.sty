@@ -25,6 +25,8 @@
 \definecolor{brick}{HTML}{B03A2E}  % emphasis, used sparingly
 \definecolor{leaf}{HTML}{2E7D4F}   % "correct" marks
 \definecolor{ochre}{HTML}{C08A1E}  % third series in plots
+\definecolor{petrol}{HTML}{173F4A} % FACTS-H Lab identity
+\definecolor{brass}{HTML}{B0832E}  % FACTS-H Lab identity
 
 \setbeamercolor{normal text}{fg=ink,bg=white}
 \setbeamercolor{structure}{fg=navy}
@@ -58,7 +60,7 @@
   \leavevmode
   \hbox to \paperwidth{\hskip1.2em
     {\usebeamerfont{footline}\usebeamercolor[fg]{footline}\lecturelabel\hfill
-     \insertframenumber\,/\,\inserttotalframenumber}\hskip1.2em}%
+     \factshsmall\hspace{1.4em}\insertframenumber\,/\,\inserttotalframenumber}\hskip1.2em}%
   \vskip0.7em}
 
 % ---------- lists ----------
@@ -78,6 +80,19 @@
   \egroup;
   \draw[navy,line width=1.2pt] ([xshift=-0.6em]b.north west) -- ([xshift=-0.6em]b.south west);
   \end{tikzpicture}\par\vskip0.3em}
+
+% ---------- FACTS-H Lab wordmark ----------
+\newcommand{\factshfont}{\fontfamily{phv}\selectfont}
+% full mark: brass bar + FACTS-H + LAB
+\newcommand{\factshmark}[1][1]{%
+  \begin{tikzpicture}[baseline=(t.base),scale=#1,every node/.style={transform shape}]
+    \fill[brass] (0,-0.08) rectangle (0.12,0.42);
+    \node[anchor=west,inner sep=0,text=petrol] (t) at (0.2,0.15) {\factshfont\bfseries\large FACTS-H};
+    \node[anchor=west,inner sep=0,text=brass] at ([xshift=0.3em]t.east) {\factshfont\small\scshape lab};
+  \end{tikzpicture}}
+% tiny version for the footer
+\newcommand{\factshsmall}{{\color{brass}\rule[-0.1ex]{0.25em}{1.4ex}}\,{\color{petrol}\factshfont\bfseries FACTS-H}\,{\color{brass}\factshfont Lab}}
+\newcommand{\factshurl}{https://factsh.iiitkottayam.ac.in}
 
 % ---------- small helpers ----------
 % Activity tag in the top-right corner: \yourturn{3 min}

@@ -27,6 +27,10 @@
   {\small\color{inksoft}Indian Institute of Information Technology Kottayam\par}
   \vskip0.4em
   {\small\color{inksoft}Lecture 20 of 27 \textperiodcentered\ offline session \textperiodcentered\ 90 minutes\par}
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=south east] (fl) at ([xshift=-1.4em,yshift=1.2em]current page.south east) {\includegraphics[height=2.1cm]{factsh_logo.png}};
+    \node[anchor=east,align=right,font=\scriptsize,text=inksoft] at ([xshift=-0.3em]fl.west) {a session from\\{\color{petrol}\factshfont\bfseries\normalsize FACTS-H Lab}};
+  \end{tikzpicture}
 \end{frame}
 
 % ------------------------------------------------------------------ hook
@@ -627,6 +631,47 @@ for t in reversed(range(len(inputs))):                         # backward, throu
   \end{enumerate}
   \vskip1em
   \textbf{Next session (Lecture 21):} LSTM and GRU, cells with gates that decide what to forget, what to write and what to show; bidirectional RNNs; a case study that compares all four.
+\end{frame}
+
+\begin{frame}[plain]
+  \begin{columns}[T]
+    \begin{column}{0.63\textwidth}
+      \vskip0.2em
+      \begin{minipage}[c]{1.9cm}\includegraphics[width=1.9cm]{factsh_logo.png}\end{minipage}\hspace{0.8em}%
+      \begin{minipage}[c]{0.66\linewidth}
+        {\color{petrol}\factshfont\bfseries\LARGE FACTS-H Lab\par}
+        \vskip0.2em
+        {\scriptsize\color{inksoft}\textbf{F}air \& \textbf{A}ccountable \textbf{C}omputing Solutions that are \textbf{T}ransparent with \textbf{S}ociological and \textbf{H}umanistic Insights\par}
+        \vskip0.2em
+        {\scriptsize\color{inksoft}Indian Institute of Information Technology Kottayam\par}
+      \end{minipage}
+      \vskip0.4em
+      {\small\itshape A research lab that builds tools people actually use, and publishes the science behind them.\par}
+      \vskip0.3em
+      \footnotesize
+      \begin{itemize}[<1->]
+        \item \textbf{Healthcare AI with AIIMS.} An ICMR-funded multicentric project on AI for ocular tumour detection; a clinical image-capture app used at four AIIMS sites; a gaze-tracking toolkit.
+        \item \textbf{Software the institute runs on.} The attendance portal, Ph.D.\ lifecycle portal, exam seating automation, timetabling, grade-card verification, result analysis, and \emph{Aula}, a live polling tool for classrooms.
+        \item \textbf{Three patents}, on eye tracking for film studies, nine-gaze capture of eye images, and secure authentication at the hostel gate.
+        \item \textbf{People.} Twelve faculty and eleven Ph.D.\ scholars, among them Dr.\ Sara Renjit. The games you played today were built in the lab.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \vskip1.2em
+      \centering
+      \qrcode[height=3.2cm]{\factshurl}\\[0.3em]
+      {\scriptsize\ttfamily factsh.iiitkottayam.ac.in}
+      \vskip1.2em
+      \raggedright
+      {\color{brass}\factshfont\bfseries\small Work with us\par}
+      \vskip0.2em
+      {\small You know your field's data and its hard problems. We know machine learning. If your department has a question that data could answer, talk to Dr.\ Sara Renjit after the session or write to \texttt{\scriptsize sararenjit@iiitkottayam.ac.in}.\par}
+    \end{column}
+  \end{columns}
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[petrol] ([yshift=0pt]current page.south west) rectangle ([yshift=4pt]current page.south east);
+    \fill[brass] ([yshift=4pt]current page.south west) rectangle ([xshift=-0.75\paperwidth,yshift=6pt]current page.south east);
+  \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{References}
