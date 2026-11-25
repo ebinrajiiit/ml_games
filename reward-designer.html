@@ -30,6 +30,7 @@
     <h1>The agent does exactly what you pay it for</h1>
     <p><b>Round 1, Formulate it</b> (40 points): four situations. Pick the right state, action, reward or episode type. 15 seconds each.</p>
     <p><b>Round 2, Fix the reward</b> (60 points): the Campus Courier robot must carry books from the hostel to the library without crossing the rain puddle. Three broken reward designs. Change the sliders, press <b>Train</b>, see where the robot goes, then <b>Submit</b>.</p>
+    <p class="muted">Remember the cobra bounty: pay for dead cobras and people breed cobras. An agent does the same with a careless reward.</p>
     <p class="muted small">Training here is exact (value iteration), so the same sliders always give the same robot. How an agent learns this by trial and error is Q-learning, in the next lecture.</p>
     <label for="nick">Nickname for the room screen<span class="hint">Optional. Leave blank and we'll pick one for you.</span></label>
     <input type="text" id="nick" maxlength="30" autocomplete="off">
@@ -83,7 +84,7 @@ const CARDS=[
    x:"There is no natural end, so it is continuing, and γ < 1 keeps the total reward finite."}
 ];
 const CH=[
-  {id:"c1",title:"Challenge 1: the boss's reward",story:"The robot's owner wants it to “keep busy”, so it gets +1 for every step. It never reaches the library. Fix the design so it delivers the books.",
+  {id:"c1",title:"Challenge 1: the boss's reward",story:"The robot's owner wants it to “keep busy”, so it gets +1 for every step, like paying staff for hours present rather than work done. It never reaches the library. Fix the design so it delivers the books.",
    init:{rs:1,rp:0,rg:10,g:0.95},lock:{}},
   {id:"c2",title:"Challenge 2: keep the books dry",story:"Now the robot reaches the library, but straight through the puddle. Make it take the dry route round the left side.",
    init:{rs:-1,rp:-1,rg:10,g:0.95},lock:{}},

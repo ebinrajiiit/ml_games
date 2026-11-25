@@ -44,6 +44,7 @@
       <li><b>i, input gate</b>: 1 adds the current token to the memory, 0 ignores it.</li>
       <li><b>o, output gate</b>: 1 shows the memory, 0 stays silent.</li>
     </ul>
+    <p class="muted">Think of the belt as an office file moving from desk to desk. At each desk: keep the old pages or remove them (f), add today's note or not (i), show the file at the meeting or keep it closed (o).</p>
     <p class="muted small">We drop the tanh and use only 0 or 1 so the numbers stay readable. In a real LSTM every gate is a value between 0 and 1, learned per step.</p>
     <p>Five levels, 20 points each. On <span style="color:var(--red);font-weight:700">ASK</span> tokens the output must be the right number. On every other token the output must be 0. Each mistake costs 5 points.</p>
     <label for="nick">Nickname for the room screen<span class="hint">Optional. Leave blank and we'll pick one for you.</span></label>
@@ -104,7 +105,7 @@ const LEVELS=[
    toks:[{v:1,k:"star"},{v:1,k:"dot"},{v:1,k:"star"},{v:1,k:"star"},{v:1,k:"dot"},{v:0,k:"ask",want:3}]},
   {id:"l4",title:"Recall twice",goal:"Answer the first question, then switch to the new STORE number for the second.",
    toks:[{v:4,k:"store"},{v:7,k:"noise"},{v:0,k:"ask",want:4},{v:2,k:"store"},{v:5,k:"noise"},{v:0,k:"ask",want:2}]},
-  {id:"l5",title:"Now you are a GRU",gru:true,goal:"A GRU has one gate. Each step: h = (1 − z)·h + z·x, and h is always visible. Hold the STORE number so that h is right when asked (only ASK steps are checked).",
+  {id:"l5",title:"Now you are a GRU",gru:true,goal:"A GRU has one gate, like a single-lever mixer tap: more new water means less old. Each step: h = (1 − z)·h + z·x, and h is always visible. Hold the STORE number so that h is right when asked (only ASK steps are checked).",
    toks:[{v:6,k:"store"},{v:3,k:"noise"},{v:8,k:"noise"},{v:1,k:"noise"},{v:0,k:"ask",want:6}]}
 ];
 const KLAB={store:"store",noise:"noise",star:"★",dot:"◆",ask:"ask"};

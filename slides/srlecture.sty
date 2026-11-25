@@ -121,6 +121,21 @@
   gate/.style={circle,draw=ink,fill=white,minimum size=0.5cm,inner sep=0pt,font=\scriptsize},
   op/.style={circle,draw=ink,fill=white,minimum size=0.42cm,inner sep=0pt,font=\small},
 }
+% ---------- analogy slides ----------
+% \analogyframe{title}{the picture, one short paragraph}{rows: everyday & network \\ \pause ...}
+\newcommand{\analogyframe}[3]{%
+  \begin{frame}{#1}
+    {\color{brick}\scriptsize\scshape think of it as\par}\vskip0.25em
+    {\itshape\color{ink}#2\par}
+    \vskip0.6em
+    {\small\renewcommand{\arraystretch}{1.25}%
+    \begin{tabular}{@{}>{\raggedright}p{6.0cm}@{\hspace{0.8em}}c@{\hspace{0.8em}}>{\raggedright\arraybackslash}p{6.0cm}@{}}
+      {\color{inksoft}\scshape in everyday life} & & {\color{inksoft}\scshape in the network} \\[-0.2em]
+      \multicolumn{3}{@{}l@{}}{\color{rulegrey}\rule{\linewidth}{0.4pt}} \\
+      #3
+    \end{tabular}\par}
+  \end{frame}}
+\newcommand{\maps}{{\color{brick}$\longrightarrow$}}
 % ---------- animation ----------
 % Lists build one item per click unless a list says otherwise with [<1->].
 \beamerdefaultoverlayspecification{<+->}

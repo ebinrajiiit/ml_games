@@ -18,6 +18,7 @@
   <section id="start">
     <h1>You are the recurrent weight</h1>
     <p>A one-number RNN: <span class="eq" style="display:inline-block;margin:0">h<sub>t</sub> = tanh(w<sub>xh</sub>·x<sub>t</sub> + w<sub>hh</sub>·h<sub>t−1</sub>)</span></p>
+    <p class="muted">Think of h<sub>t</sub> as the score you keep in your head while following a cricket match on the radio. After every ball (x<sub>t</sub>) you update it. w<sub>hh</sub> is how much of the old score you carry forward; w<sub>xh</sub> is how much the new ball counts.</p>
     <p>Ten rounds, about six minutes:</p>
     <ol class="small">
       <li><b>Rounds 1–5, tune the memory.</b> Move the two sliders until your hidden state (solid line) traces the target (dots).</li>
@@ -48,7 +49,7 @@
     <p class="status" id="sent"></p>
     <hr>
     <h2>What to take from it</h2>
-    <p><b>0 &lt; w<sub>hh</sub> &lt; 1</b>: a pulse fades step by step. The closer to 1, the longer it lasts.</p>
+    <p><b>0 &lt; w<sub>hh</sub> &lt; 1</b>: a pulse fades step by step, like a fixed deposit that loses a little every year. The closer to 1, the longer it lasts.</p>
     <p><b>w<sub>hh</sub> &lt; 0</b>: the state flips sign every step.</p>
     <p><b>Steady input</b> piles up until tanh flattens it near ±1.</p>
     <p><b>The gradient</b> only survived 40 steps for w<sub>hh</sub> between about 0.944 and 1.059. Training a plain RNN means finding that thin band, for every unit. The LSTM gets around it in the next lecture.</p>
@@ -139,6 +140,7 @@ function gradient(){
   const K=40;
   $("stage").innerHTML=`<p class="kicker">Keep the gradient alive</p><h2 style="margin-top:0">Forty steps back</h2>
   <p class="task">Going one step back in time multiplies the gradient by w<sub>hh</sub> (we ignore the tanh factor, which only makes it smaller). Choose w<sub>hh</sub> so that after 40 steps the gradient is between 0.1 and 10: not vanished, not exploded.</p>
+  <p class="muted small">It is a whisper passed down a row of 40 students: if each one passes on 90%, almost nothing arrives; if each one exaggerates by 10%, it becomes a rumour 45 times too big.</p>
   <div id="ch"></div>
   <div class="legend"><span>bars: gradient size k steps back (log scale)</span><span>band: 0.1 to 10</span></div>
   <p class="eq" id="g40"></p>

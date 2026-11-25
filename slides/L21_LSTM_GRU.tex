@@ -93,6 +93,14 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{The LSTM is a file in an office}
+{A file moves from desk to desk. At each desk a clerk can remove old pages that no longer matter, add a new note, and decide which page to show at today's meeting. The file itself is never rewritten from scratch.}
+{the file that travels between desks & \maps & the cell state $\bm c_t$ \pause\\
+ removing outdated pages & \maps & forget gate $\bm f_t$ \pause\\
+ adding a new note sheet & \maps & input gate $\bm i_t$ with candidate $\bm g_t$ \pause\\
+ the page you show at the meeting & \maps & output gate $\bm o_t$, giving $\bm h_t$ \pause\\
+ the old RNN: retyping the whole file at every desk & \maps & $\bm h_t=\tanh(W\ldots)$ every step \\}
+
 \begin{frame}{Inside one LSTM cell}
   \centering
   \resizebox{!}{5.6cm}{%
@@ -158,6 +166,13 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{A gate is a fan regulator, not a light switch}
+{A light switch is on or off. A fan regulator can be anywhere from 0 to 5. Every gate in an LSTM is a regulator, and each memory slot has its own set, turned by the network at every word.}
+{regulator at 0 & \maps & gate value $0$: nothing passes \pause\\
+ regulator at 5 & \maps & gate value $1$: everything passes \pause\\
+ regulator at 3 & \maps & gate value $0.6$: part passes \pause\\
+ a smooth knob, not a click & \maps & the sigmoid $\sigma$: differentiable, so it can be learned \\}
+
 \begin{frame}{The gates, word by word}
   \small
   One memory slot tracks ``is the subject plural?'' in\\[0.2em]
@@ -200,6 +215,12 @@
     \end{column}
   \end{columns}
 \end{frame}
+
+\analogyframe{A photocopy of a photocopy, or the original file?}
+{Photocopy a page, then copy the copy, fifty times: the text fades away. Now send the original file along instead, with each desk only stamping a note on it: page one is still crisp at the fiftieth desk.}
+{copy of a copy of a copy & \maps & plain RNN: multiply by $W_{hh}$ and $\tanh'$ every step \pause\\
+ the original file, passed on & \maps & LSTM: $\bm c_t = \bm f_t\odot\bm c_{t-1}+\ldots$ with $f\approx1$ \pause\\
+ a new clerk told ``keep everything unless told to remove it'' & \maps & forget-gate bias set positive at the start \\}
 
 \begin{frame}{One LSTM step by hand}
   \small
@@ -275,6 +296,13 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{GRU versus LSTM: a mixer tap versus two taps}
+{A bathroom with two taps lets you run hot and cold independently, even both fully open. A single-lever mixer gives one control: turning towards hot takes away cold.}
+{two separate taps & \maps & LSTM: forget $f$ and input $i$ set independently \pause\\
+ both taps fully open, the bucket fills & \maps & $f=1,\ i=1$: the LSTM can add up, count \pause\\
+ the single mixer lever & \maps & GRU: one update gate $z$ mixes old and new \pause\\
+ more hot always means less cold & \maps & writing new always erases the same share of old \\}
+
 \begin{frame}{Choosing between them}
   \small
   \renewcommand{\arraystretch}{1.3}
@@ -307,6 +335,11 @@
 
 \sectionslide{Part 3}{Reading both ways, and stacking}
 
+\analogyframe{Why read backwards too? Malayalam puts the verb last}
+{``Avan oru chaaya \ldots'' \ He a tea \ldots\ drank? bought? spilled? In Malayalam you often learn what happened only at the last word. A good examiner, likewise, reads the whole answer before deciding what the first line meant.}
+{the listener who waits for the verb & \maps & the backward RNN, reading right to left \pause\\
+ understanding a word using what came after it & \maps & $\bm h_t=[\overrightarrow{\bm h}_t;\overleftarrow{\bm h}_t]$ \pause\\
+ a live interpreter cannot wait for the end & \maps & no bidirectional model for streaming speech \\}
 \begin{frame}{Bidirectional RNNs (Schuster \& Paliwal, 1997)}
   \begin{columns}[c]
     \begin{column}{0.52\textwidth}
@@ -366,6 +399,12 @@
     \end{column}
   \end{columns}
 \end{frame}
+
+\analogyframe{Stacked layers are an office hierarchy}
+{The clerk reads every letter and notes the facts. The section officer reads the clerk's notes and spots patterns. The registrar reads the section officer's summary and sees the big picture.}
+{the clerk, letter by letter & \maps & layer 1: characters, short patterns \pause\\
+ the section officer, reading the clerk's notes & \maps & layer 2: phrases \pause\\
+ the registrar & \maps & layer 3: the meaning of the whole sequence \\}
 
 \sectionslide{Part 4 \textperiodcentered\ case study}{How far back can each cell remember?}
 

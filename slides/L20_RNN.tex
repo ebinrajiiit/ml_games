@@ -142,6 +142,14 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{The hidden state is a cricket score you keep in your head}
+{You are listening to a match on the radio. You cannot see the ground. The commentator describes one ball at a time, and after every ball you update a small scoreboard in your head: runs, wickets, overs, who is batting. You never replay the whole match; the scoreboard is enough to follow it.}
+{one ball described on the radio & \maps & the input $\bm x_t$ \pause\\
+ the scoreboard in your head & \maps & the hidden state $\bm h_t$ \pause\\
+ it stays the same size, at ball 5 or ball 250 & \maps & $\bm h_t$ has $n$ numbers, whatever the length \pause\\
+ your habit for updating the score & \maps & $W_{xh}$, $W_{hh}$ and $\tanh$ \pause\\
+ ``we will win this'' & \maps & the output $\hat{\bm y}_t$ \\}
+
 \begin{frame}{The update rule (Elman, 1990)}
   \vskip0.4em
   \[
@@ -225,6 +233,12 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{Parameter sharing is one marking scheme for every script}
+{An examiner values 300 answer scripts with a single marking scheme. The scheme does not get longer because there are more scripts, and an answer earns the same marks whether it is on page 2 or page 12.}
+{the marking scheme & \maps & the weights $W_{xh}$, $W_{hh}$ \pause\\
+ the same scheme for script 1 and script 300 & \maps & the same weights at step 1 and step 300 \pause\\
+ a good point is rewarded wherever it appears & \maps & ``not good'' is understood at any position \\}
+
 \begin{frame}{A forward pass you can do by hand}
   \small
   Scalar RNN, no bias: \quad $h_t=\tanh(0.5\,x_t + 0.8\,h_{t-1})$, \quad $h_0=0$, \quad inputs $x = (1,\;0,\;2)$
@@ -294,6 +308,14 @@
   \uncover<6->{\small The cell is identical in all five. Only where we feed inputs and where we read outputs changes.}
 \end{frame}
 
+\analogyframe{The five shapes, in a college}
+{Each shape is a familiar kind of work: what goes in, and what comes out, and when.}
+{mark one MCQ answer & \maps & one to one \pause\\
+ give a topic, get a full lecture & \maps & one to many \pause\\
+ a whole semester's attendance, one final grade & \maps & many to one \pause\\
+ roll call: one ``present'' for every name & \maps & many to many, aligned \pause\\
+ a seminar interpreter who waits for the full sentence, then speaks it in another language & \maps & encoder--decoder \\}
+
 \begin{frame}{Which shape? Call it out}
   \yourturn{4 min}
   \renewcommand{\arraystretch}{1.45}
@@ -343,6 +365,13 @@
   \margin{For long sequences we cut the unrolled graph every $K$ steps (truncated BPTT) to save memory.}
 \end{frame}
 
+\analogyframe{Backpropagation through time is a post-match review}
+{The team lost by 12 runs. In the review the coach walks back over by over, asking how much each over contributed to the loss. A bowler who bowled five overs collects blame from all five.}
+{the final result & \maps & the loss $L$ \pause\\
+ walking back over by over & \maps & backpropagating step by step \pause\\
+ one bowler, many overs, blame added up & \maps & one $W_{hh}$, many steps, gradients summed \pause\\
+ his next-season training plan & \maps & the weight update \\}
+
 \begin{frame}{Why the signal from far back gets lost}
   To reach step $t-k$, the gradient is multiplied by one Jacobian per step:
   \[
@@ -368,6 +397,13 @@
     \end{column}
   \end{columns}
 \end{frame}
+
+\analogyframe{Vanishing and exploding gradients are compound interest}
+{Pass a whispered message down a row of 50 students and little of it survives. Put money in a deposit that loses 10\% a year and after 50 years you hold half a percent of it; one that gains 10\% a year multiplies 117 times. Training signals that travel back through time behave the same way.}
+{a whisper passed along a long row & \maps & the error signal passed back step by step \pause\\
+ losing 10\% a year: $0.9^{50}=0.005$ & \maps & vanishing gradient: early words are never corrected \pause\\
+ gaining 10\% a year: $1.1^{50}=117$ & \maps & exploding gradient: weights jump to \texttt{NaN} \pause\\
+ only a rate of exactly 0\% keeps the sum steady & \maps & only $|w_{hh}|\approx 1$ keeps the gradient alive \\}
 
 \begin{frame}{We measured it}
   \begin{columns}[c]
@@ -405,6 +441,12 @@
     Long sequences, memory & Truncated BPTT: backpropagate through the last $K$ steps only. \\ \bottomrule
   \end{tabular}
 \end{frame}
+
+\analogyframe{Gradient clipping is a speed governor}
+{A KSRTC bus has a governor: however hard the driver presses, the speed never goes above the limit. The bus still goes where it was going, just not dangerously fast.}
+{the accelerator pressed too hard & \maps & a huge gradient from one bad batch \pause\\
+ the governor's speed limit & \maps & the threshold $\tau$ \pause\\
+ same direction, safe speed & \maps & $g \leftarrow \tau\, g/\|g\|$: same direction, capped size \\}
 
 % ------------------------------------------------------------------ section 5
 \sectionslide{Part 5 \textperiodcentered\ case study}{An RNN that invents Kerala place names}
@@ -511,6 +553,12 @@ for t in reversed(range(len(inputs))):                         # backward, throu
     \end{column}
   \end{columns}
 \end{frame}
+
+\analogyframe{Overfitting is the guide-book student}
+{One student understands the subject and can answer a new question. Another has memorised the last ten years' question papers and can only reproduce them. Both score well on old papers.}
+{understands spelling patterns, invents \emph{bharanassery} & \maps & the RNN after 8{,}000 names \pause\\
+ recites last year's answers word for word & \maps & the RNN after 30{,}000 names: 74\% copies \pause\\
+ a surprise question paper & \maps & a held-out set of names \\}
 
 % ------------------------------------------------------------------ section 6
 \begin{frame}{Game: Hidden State}

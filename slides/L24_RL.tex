@@ -58,6 +58,13 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{Reinforcement learning is getting marks without the answer key}
+{Two students write the same test. One gets the script back with every mistake corrected and the model answers attached. The other is told only ``you scored 6 out of 10'' and must work out, over many tests, which of her answers cost marks.}
+{the corrected script with model answers & \maps & supervised learning: the right label for every input \pause\\
+ only the total mark & \maps & reinforcement learning: a reward, no correct answer \pause\\
+ ``which of my answers lost the marks?'' & \maps & the credit-assignment problem \pause\\
+ trying a different approach next test & \maps & exploration \\}
+
 \begin{frame}{Where reinforcement learning sits in this course}
   \small\renewcommand{\arraystretch}{1.2}
   \begin{tabular}{@{}>{\raggedright}p{2.7cm}>{\raggedright}p{3.6cm}>{\raggedright}p{3.6cm}>{\raggedright\arraybackslash}p{3.7cm}@{}}
@@ -95,6 +102,13 @@
   \vskip0.6em
   \small In every row someone first had to decide what the agent sees, what it may do and what counts as good. That decision is today's topic.
 \end{frame}
+
+\analogyframe{Delayed reward: the paddy farmer}
+{A Kuttanad farmer decides in June when to sow, how much water to let in, when to spray. The verdict on all of it arrives in one number at harvest in November. Which June decision made the difference?}
+{decisions through the season & \maps & actions $a_0, a_1, \ldots$ \pause\\
+ the state of the field each week & \maps & states $s_t$ \pause\\
+ the harvest & \maps & a reward that arrives at the end \pause\\
+ the farmer's know-how, refined over many seasons & \maps & the policy $\pi$, refined over many episodes \\}
 
 \sectionslide{Part 1}{The vocabulary}
 
@@ -178,6 +192,13 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{The discount $\gamma$ is how much Rs\,100 next year is worth today}
+{Would you rather have Rs\,100 today or Rs\,100 next year? Most people take it today, because the future is uncertain and money now can be used now. If Rs\,100 next year feels like Rs\,90 today, your $\gamma$ is 0.9.}
+{Rs\,100 in 1 year feels like Rs\,90 now & \maps & $\gamma=0.9$: a reward one step later counts 0.9 \pause\\
+ Rs\,100 in 2 years feels like Rs\,81 now & \maps & two steps later: $\gamma^2=0.81$ \pause\\
+ ``only today's salary matters'' & \maps & $\gamma=0$: completely short-sighted \pause\\
+ a pension planner who values every year equally & \maps & $\gamma\to1$: far-sighted \\}
+
 \begin{frame}{The Markov property: is your state enough?}
   \begin{columns}[T]
     \begin{column}{0.52\textwidth}
@@ -198,6 +219,12 @@
   \vskip0.6em
   \margin{Link to Lectures 20--21: when the raw observation is not Markov, an RNN or LSTM can summarise the history into a state.}
 \end{frame}
+
+\analogyframe{A Markov state is a good case sheet}
+{A doctor on night duty opens a patient's case sheet. If it records everything that matters now (vitals, current drugs, recent events), she can decide without phoning the patient's family for the life story. If it is missing the last dose given, she cannot.}
+{the case sheet & \maps & the state $s_t$ \pause\\
+ ``everything that matters is written here'' & \maps & the Markov property \pause\\
+ the last dose was not recorded & \maps & a non-Markov state: add more history \\}
 
 \sectionslide{Part 2}{Formulating a task: five questions}
 
@@ -254,6 +281,13 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{Reward hacking is the cobra effect}
+{The often-told story: to cut the number of cobras in Delhi, officials paid a bounty for every dead cobra. People began breeding cobras for the bounty. When the scheme was stopped, the breeders released their snakes, and there were more cobras than before. Teachers know a milder version: when marks become the target, students learn to score, not to understand.}
+{a bounty per dead cobra & \maps & a reward that is easy to count \pause\\
+ breeding cobras & \maps & the agent's loophole: high reward, wrong behaviour \pause\\
+ teaching to the test & \maps & optimising the proxy instead of the goal \pause\\
+ the CoastRunners boat circling for points & \maps & the same thing, in a real RL system \\}
+
 \begin{frame}{Worksheet, Part B: formulate one yourself}
   \yourturn{10 min}
   \begin{block}{In groups of three, choose one and fill in the four-row table}
@@ -301,6 +335,12 @@
   \end{columns}
 \end{frame}
 
+\analogyframe{An environment is the rulebook of a board game}
+{Before anyone can play snakes and ladders, someone has to write the rules: how the board is set up, what a move does, what you score, and when the game ends. Writing an RL environment is writing that rulebook in code.}
+{set up the board & \maps & \texttt{reset()} returns the first state \pause\\
+ make one move; the referee announces the new position and the points & \maps & \texttt{step(action)} returns state and reward \pause\\
+ ``game over'' & \maps & \texttt{terminated} \pause\\
+ ``time up, stop playing'' & \maps & \texttt{truncated} \\}
 \begin{frame}[fragile]{Defining it in code: the Gymnasium interface}
 \begin{lstlisting}
 class CampusCourier(gym.Env):
