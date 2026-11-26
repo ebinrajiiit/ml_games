@@ -12,5 +12,5 @@
 window.GAME_CONFIG = {
   SUPABASE_URL: "https://bphschorkhgwnjcxzjkc.supabase.co",
   SUPABASE_KEY: "sb_publishable_P3YBd9zZ57yasBvEYLLy5g_JiLW_8mc",
-  SESSION: "qip-ml-2026"
+  SESSION: "qip-L20"
 };
