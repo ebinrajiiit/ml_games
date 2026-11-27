@@ -59,7 +59,7 @@
     40--55 & Training: backpropagation through time, vanishing gradients & \\
     55--68 & Case study: an RNN that invents Kerala place names & Part C \\
     68--82 & Game: \emph{Hidden State} on your phone & Part D \\
-    82--90 & Exit ticket, and what LSTM will fix next session & Part E \\ \bottomrule
+    82--90 & Exit ticket, and what LSTM will fix next session & Part D \\ \bottomrule
   \end{tabular}
   \vskip1em
   \margin{Reading: Goodfellow, Bengio \& Courville, \emph{Deep Learning}, Chapter 10 (Sections 10.1--10.2, 10.7).}
@@ -607,14 +607,14 @@ for t in reversed(range(len(inputs))):                         # backward, throu
   \end{columns}
 \end{frame}
 
-\begin{frame}{Exit ticket (worksheet Part E)}
+\begin{frame}{Exit ticket (worksheet Part D)}
   \yourturn{5 min}
   \begin{enumerate}
     \item An RNN with $d=50$ inputs and $n=64$ hidden units (no output layer) has how many parameters?\\
       (a) 3{,}264 \quad (b) 7{,}360 \quad (c) 7{,}296 \quad (d) depends on the sequence length
     \item In BPTT the gradient for $W_{hh}$ is
       (a) taken from the last step only \quad (b) averaged over epochs \quad (c) summed over all time steps \quad (d) zero for $t=1$
-    \item Gradient clipping is a fix for\\
+    \item Gradient clipping is a fix for \emph{(ask aloud; not on the sheet)}\\
       (a) vanishing gradients \quad (b) exploding gradients \quad (c) overfitting \quad (d) slow inference
   \end{enumerate}
   \vskip0.6em
